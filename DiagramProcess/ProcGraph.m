@@ -4,10 +4,11 @@ PackageExport["ProcGraph"]
 
 
 Options[ProcGraph] = {
-    "ComposeDistance" -> 1,
-    "ParallelComposeDistance" -> 1, "AddTerminals" -> False,
+    "ComposeDistance" -> Automatic,
+    "ParallelComposeDistance" -> Automatic, "AddTerminals" -> False,
     "OutlineProcess" -> False, "ShowLabels" -> True,
-    "ArrowPosition" -> Automatic};
+    "ArrowPosition" -> Automatic,
+    "Size" -> Automatic};
 
 ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
     If[TrueQ[OptionValue["AddTerminals"]],
@@ -16,7 +17,10 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
 
     Graph[{Annotation[p, {
         VertexCoordinates -> {0, 0},
-        VertexSize -> {1, 1},
+        VertexSize -> MapAt[Replace[Automatic -> 1],
+            MapAt[Replace[Automatic -> procArity[p]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
+            2
+        ],
         VertexShapeFunction ->
             With[{
                 inArity = Length[in], outArity = Length[out],
@@ -77,13 +81,13 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                 }],
 
                 True,
-                procShape[#1, label, (*outArity/2*)#3[[1]], (*inArity/2*)#3[[1]], #3[[2]]] &
+                procShape[#1, label, #3[[1]], #3[[1]], #3[[2]]] &
             ]},
             If[TrueQ[OptionValue["OutlineProcess"]],
             {
                 shapeFun[##],
                 FaceForm[Transparent], EdgeForm[Dashed],
-                procShape[#1, "", (*outArity/2*)#3[[1]], (*inArity/2*)#3[[1]], #3[[2]]]
+                procShape[#1, "", #3[[1]], #3[[1]], #3[[2]]]
             } &,
             shapeFun[##] &
             ]
@@ -98,102 +102,125 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
 ProcGraph[Proc[f : _Composition | _CircleTimes, args__], opts : OptionsPattern[]] :=
     ProcGraph[Proc[Defer[f], args], opts]
 
+
 ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
-    graphs = Map[ProcGraph[#, "AddTerminals" -> False, opts] &, {ps}],
+    graphs, size,
+    graphWidths, graphHeights,
+    parallelComposeDistance,
     vertices, edges,
-    vertexSize,
-    vertexCoordinates,
-    vertexXShifts, vertexYShifts,
-    vertexCoordinateShifts, newVertexCoordinates
+    vertexSize, vertexCoordinates,
+    vertexXShifts, vertexYShifts, vertexCoordinateShifts,
+    newVertexCoordinates
 },
     If[TrueQ[OptionValue["AddTerminals"]],
         Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
     ];
+    size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
+    graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {Automatic, size[[2]]}, opts] &, {ps}];
+    {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
+    With[{
+        scaleWidth = If[size[[1]] =!= Automatic && OptionValue["ParallelComposeDistance"] =!= Automatic,
+            (size[[1]] - (Length[{ps}] - 1) * OptionValue["ParallelComposeDistance"]) / Total[graphWidths],
+            1
+        ]
+    },
+        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * scaleWidth, Max[graphHeights]}, opts] &,
+            {{ps}, graphWidths}
+        ];
+        {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
+    ];
+    parallelComposeDistance = Replace[OptionValue["ParallelComposeDistance"], Automatic -> If[size[[1]] =!= Automatic,
+        Max[(size[[1]] - Total[graphWidths]) / (Length[{ps}] - 1), 0],
+        1
+    ]];
     vertices = VertexList /@ graphs;
     edges = Catenate[EdgeList /@ graphs];
-    vertexSize = Association @ Catenate[AnnotationValue[#, VertexSize] & /@ graphs](*MapThread[
-  Function[{vs,size},#\[Rule]{1,size}&/@vs],{vertices,1/Normalize[
-  procHeight/@{ps},Max]}]*);
+    vertexSize = AnnotationValue[#, VertexSize] & /@ graphs;
     vertexCoordinates = AnnotationValue[#, VertexCoordinates] & /@ graphs;
-    vertexXShifts = Most @ FoldList[
-        #1 + Max[#2] + 1 + OptionValue["ParallelComposeDistance"] &,
+    vertexXShifts = FoldList[
+        #1 + #2 + parallelComposeDistance &,
         0,
-        vertexCoordinates[[All, All, 1]]
+        Map[Mean, Partition[graphWidths, 2, 1]]
     ];
     vertexYShifts = Map[- Mean[#] &, vertexCoordinates[[All, All, 2]]];
     vertexCoordinateShifts = Thread[{vertexXShifts, vertexYShifts}];
-    newVertexCoordinates = Association @ Catenate @
-        MapThread[Function[{vs, coords, shift},
-            MapThread[#1 -> (#2 + shift )(*vertexSize[#1]*)&, {vs, coords}]],
-            {vertices, vertexCoordinates, vertexCoordinateShifts}
-        ];
+
+    newVertexCoordinates = Association @ Catenate @ MapThread[
+        Function[{vs, coords, shift},
+            MapThread[#1 -> #2 + shift &, {vs, coords}]
+        ],
+        {vertices, vertexCoordinates, vertexCoordinateShifts}
+    ];
+
     Graph[Catenate @ vertices, edges,
         VertexCoordinates -> newVertexCoordinates,
-        VertexSize -> Normal @ vertexSize,
-        VertexShapeFunction -> Catenate[AnnotationValue[#, VertexShapeFunction] & /@ graphs]
+        VertexSize -> Catenate @ vertexSize,
+        VertexShapeFunction -> Catenate[AnnotationValue[#, VertexShapeFunction] & /@ graphs],
+        EdgeShapeFunction -> Catenate[Replace[AnnotationValue[#, EdgeShapeFunction], Automatic -> {}] & /@ graphs]
     ]
 ]
 
 ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
-    graphs = Map[ProcGraph[#, "AddTerminals" -> False, opts] &, {ps}],
+    graphs, size,
+    composeDistance,
     vertices, edges,
+    graphWidths, graphHeights,
+    vertexSize, vertexCoordinates,
     inBetweenEdges, allEdges,
     outArities, inArities,
-    vertexCoordinates,
     vertexXShifts, vertexYShifts, vertexCoordinateShifts,
-    widths, arities, minArities, vertexSize,
-    newVertexCoordinates
+    shiftedGraphs,
+    newVertexCoordinates, newVertexSize
 },
     If[TrueQ[OptionValue["AddTerminals"]], 
         Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
     ];
+    size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
+    graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {size[[1]], Automatic}, opts] &, {ps}];
+    {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
+    If[size[[1]] === Automatic,
+        graphs = Map[ProcGraph[#, "AddTerminals" -> False,
+        "Size" -> {Max[graphWidths], size[[2]]}, opts] &, {ps}];
+        {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
+    ];
+    composeDistance = If[size[[2]] === Automatic,
+        Replace[OptionValue["ComposeDistance"], Automatic -> 1],
+        Max[(size[[2]] - Total[graphHeights]) / (Length[{ps}] - 1), 0]
+    ];
     vertices = VertexList /@ graphs;
     edges = Catenate[EdgeList /@ graphs];
+    vertexSize = AnnotationValue[#, VertexSize] & /@ graphs;
     vertexCoordinates = AnnotationValue[#, VertexCoordinates] & /@ graphs;
     vertexXShifts = Map[- Mean[#] &, vertexCoordinates[[All, All, 1]]];
-    vertexYShifts = Most @ FoldList[
-        #1 + Min[#2] - 1 - OptionValue["ComposeDistance"] &, 
+    vertexYShifts = FoldList[
+        #1 - #2 - composeDistance &,
         0,
-        vertexCoordinates[[All, All, 2]]
+        Map[Mean, Partition[graphHeights, 2, 1]]
     ];
     vertexCoordinateShifts = Thread[{vertexXShifts, vertexYShifts}];
     inBetweenEdges = Catenate[Apply[betweenEdges] /@ Partition[{ps}, 2, 1]];
     allEdges = Join[edges, inBetweenEdges];
     outArities = GroupBy[allEdges, First, Length];
     inArities = GroupBy[allEdges, #[[2]] &, Length];
-    widths = procWidth /@ {ps};
-    arities = Total[Map[Max[inArities[#], outArities[#]] /. _Missing -> 0 &, #]] & /@ vertices;
-    minArities = Min[Map[Max[inArities[#], outArities[#]] /. _Missing -> 0 &, #]] & /@ vertices;
-    vertexSize = Association @ MapThread[
-        Function[{vs, minArity, totalArity, sizes, width}, 
-            MapThread[Function[{v, size},
-                With[{(*arity = Max[inArities[v], outArities[v]] /. _Missing -> 0*)},
-                    v -> {size[[1]](*width  Max[arity,1]/Max[minArity, 1]*) (*+(width-1)OptionValue["ParallelComposeDistance"]*), 1}]],
-                {vs, sizes}
-            ]
-      ],
-      {vertices, minArities, arities, Values[AnnotationValue[#, VertexSize] & /@ graphs], 1 / Normalize[widths, Max]}];
-    newVertexCoordinates = Association @ Catenate @ MapThread[
-        Function[{vs, coords, shift}, 
-            MapThread[#1 -> (#2 + shift )(*vertexSize[#1]*)&, {vs, coords}]
-        ],
-        {vertices, vertexCoordinates, vertexCoordinateShifts}
-    ];
+    shiftedGraphs = MapThread[shiftVertices, {graphs, vertexCoordinateShifts}];
+    shiftedGraphs = MapThread[shiftVertices[#1, {#2[[1]], 0}] &, {shiftedGraphs, Minus @* graphCenter /@ shiftedGraphs}];
+    newVertexCoordinates = Association[graphVertexCoordinates /@ shiftedGraphs];
+    newVertexSize = Association @ vertexSize;
     Graph[Catenate @ vertices, allEdges,
-        VertexCoordinates -> newVertexCoordinates,
-        VertexSize -> Normal@vertexSize,
+        VertexCoordinates -> Normal @ newVertexCoordinates,
+        VertexSize -> Normal @ newVertexSize,
         VertexShapeFunction -> Catenate @ Map[AnnotationValue[#, VertexShapeFunction] &, graphs],
         EdgeShapeFunction -> Map[Function[e,
             With[{i = e[[-1, 1, 1]], j = e[[-1, 1, 2]], v = e[[1]], w = e[[2]]},
                 With[{
-                    fromShift = {edgeSideShift[i, vertexSize[v], outArities[v]], 1 / 2},
-                    toShift = {edgeSideShift[j, vertexSize[w], inArities[w]], - 1 / 2},
+                    fromShift = {edgeSideShift[i, newVertexSize[v], outArities[v]], 1 / 2},
+                    toShift = {edgeSideShift[j, newVertexSize[w], inArities[w]], - 1 / 2},
                     dir = 1 - 2 Boole @ OptionValue[SystemType, Options[v[[3, i]]], "Backward"],
                     label = If[TrueQ @ OptionValue["ShowLabels"], Last @ getLabel[e], ""],
                     pos = OptionValue["ArrowPosition"]
                 },
                 e -> Function[
-                    ArrowUp[#1[[1]] + fromShift, #1[[-1]] + toShift, label, 
+                    ArrowUp[#1[[1]] + fromShift, #1[[-1]] + toShift, label,
                             "Direction" -> dir, "ArrowPosition" -> pos]
                 ]
                 ]

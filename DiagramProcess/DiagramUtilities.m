@@ -5,6 +5,38 @@ PackageScope["procShape"]
 PackageScope["edgeSideShift"]
 PackageScope["rescaleProc"]
 PackageScope["betweenEdges"]
+PackageScope["graphVertexCoordinates"]
+PackageScope["graphBox"]
+PackageScope["graphSize"]
+PackageScope["graphCenter"]
+PackageScope["scaleVertices"]
+PackageScope["shiftVertices"]
+
+
+
+graphVertexCoordinates[g_Graph] := AssociationThread[VertexList[g] -> AnnotationValue[g, VertexCoordinates]]
+
+
+graphBox[g_Graph] := With[{
+    vertexSizes = AnnotationValue[g, VertexSize],
+    vertexCoordinates = graphVertexCoordinates[g]},
+    {
+        MapThread[Min, Values @ Merge[{vertexCoordinates, vertexSizes}, #[[1]] - #[[2]] / 2 &]],
+        MapThread[Max, Values @ Merge[{vertexCoordinates, vertexSizes}, #[[1]] + #[[2]] / 2 &]]
+    }
+]
+
+
+graphSize[g_Graph] := ReverseApplied[Subtract] @@ graphBox[g]
+
+
+graphCenter[g_Graph] := Mean /@ Transpose[graphBox[g]]
+
+
+scaleVertices[g_Graph, scale_] := Annotate[g, VertexSize -> MapAt[# * scale &, AnnotationValue[g, VertexSize], {All, 2}]]
+
+
+shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[# + shift &, graphVertexCoordinates[g]]]
 
 
 procShape[coord_, v_, a_, b_, h_] := With[{c = If[a == b, a - 1 / 4, a]}, {

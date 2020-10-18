@@ -5,6 +5,10 @@ PackageExport["transposeProc"]
 PackageScope["transposeQ"]
 PackageScope["flattenProc"]
 PackageScope["composeProcs"]
+PackageScope["procInArity"]
+PackageScope["procOutArity"]
+PackageScope["procArity"]
+PackageScope["procArityWidth"]
 PackageScope["procIn"]
 PackageScope["procOut"]
 PackageScope["procWidth"]
@@ -63,6 +67,17 @@ composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
 unProc[p_Proc] := unLabel[p //. Proc[op_, __] :> op /. Defer -> Identity]
 
 
+procInArity[Proc[_, in_, ___]] := Length[in]
+
+procOutArity[Proc[_, _, out_, ___]] := Length[out]
+
+procArity[Proc[_, in_, out_, ___]] := Max[Length[in], Length[out]]
+
+procArityWidth[p_Proc] := procArity[p]
+procArityWidth[Proc[Defer[Composition[ps__]], __]] := Max[procArityWidth /@ {ps}]
+procArityWidth[Proc[Defer[CircleTimes[ps__]], __]] := Total[procArityWidth /@ {ps}]
+
+
 procWidth[_Proc] := 1
 procWidth[Proc[Defer[Composition[ps__]], __]] := Max @ Map[procWidth, {ps}]
 procWidth[Proc[Defer[CircleTimes[ps__]], __]] := Total @ Map[procWidth, {ps}]
@@ -74,8 +89,8 @@ procWidths[Proc[Defer[CircleTimes[ps__]], __]] := {Map[procWidth, {ps}]}
 
 
 procHeight[_Proc] := 1
-procHeight[Proc[Defer[CircleTimes[ps__]], __]] := Max @ Map[procWidth, {ps}]
-procHeight[Proc[Defer[Composition[ps__]], __]] := Total @ Map[procWidth, {ps}]
+procHeight[Proc[Defer[CircleTimes[ps__]], __]] := Max @ Map[procHeight, {ps}]
+procHeight[Proc[Defer[Composition[ps__]], __]] := Total @ Map[procHeight, {ps}]
 
 
 procHeights[_Proc] := {1}
