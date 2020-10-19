@@ -39,13 +39,23 @@ scaleVertices[g_Graph, scale_] := Annotate[g, VertexSize -> MapAt[# * scale &, A
 shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[# + shift &, graphVertexCoordinates[g]]]
 
 
-procShape[coord_, v_, a_, b_, h_] := With[{c = If[a == b, a - 1 / 4, a]}, {
+Options[procShape] = {"Shape" -> "Trapezoid"}
+
+procShape[coord_, w_, h_, OptionsPattern[]] := With[{a = w - 1 / 4}, {
     FaceForm[White], EdgeForm[Black],
     Translate[
-        ResourceFunction["Trapezoid"][c, 90 Degree, b, ArcTan[b - c, h]],
-        coord - {b / 2, h / 2}
-    ],
-    Text[Style[v, FontSize -> 16], coord, Center]
+        Switch[OptionValue["Shape"],
+            "Diamond",
+            Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, h / 2}}],
+            "UpTriangle",
+            Polygon[{{0, 0}, {w, 0}, {w / 2, h / 2}, {0, h / 4}}],
+            "DownTriangle",
+            Polygon[{{0, h}, {w, h}, {w / 2, h / 2}, {0, 3 * h / 4}}],
+            _,
+            ResourceFunction["Trapezoid"][a, 90 Degree, w, ArcTan[w - a, h]]
+        ],
+        coord - {w / 2, h / 2}
+    ]
 }]
 
 
@@ -59,7 +69,7 @@ ArrowUp[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Arrow[
         BezierCurve[{{a, b}, {a, (b + d) / 2}, {c, (b + d) / 2}, {c, d}}]
     ],
-    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} (d - b) / 8]
+    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
 
 

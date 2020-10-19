@@ -14,7 +14,7 @@ SystemType[type_] := SystemType[type, Sequence @@ Options[SystemType]]
 
 SystemType[CircleTimes[ts__]] := With[{t = CircleTimes @@ Map[SystemType, {ts}]}, SystemType[Defer[t]]]
 
-SystemType[OverBar[type_], opts : OptionsPattern[]] :=reverseType @ SystemType[type]
+SystemType[OverBar[type_], opts : OptionsPattern[]] := reverseType @ SystemType[type]
 
 SystemType[t : SystemType[__]] := t
 

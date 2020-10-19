@@ -2,7 +2,6 @@ Package["DiagramProcess`"]
 
 PackageExport["transposeProc"]
 
-PackageScope["transposeQ"]
 PackageScope["flattenProc"]
 PackageScope["composeProcs"]
 PackageScope["procInArity"]
@@ -16,7 +15,16 @@ PackageScope["procHeight"]
 PackageScope["unProc"]
 
 
-transposeQ[Proc[_, _, _, _, opts : OptionsPattern[]]] := OptionValue[Proc, opts, "Transpose"]
+
+transposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[transposeProc /@ {ps}]
+
+transposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[transposeProc /@ {ps}]
+
+transposeProc[p : Proc[f_, in_, out_, ___]] :=
+    Proc[f, Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
+        With[{label = getLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]],
+        procTag[p]
+    ]
 
 
 flattenProc[p_Proc] := p //. Map[
@@ -31,13 +39,13 @@ flattenProc[p_Proc] := p //. Map[
 composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] := 
     Which[
         fIn === {},
-        Proc[Defer[p\[CircleTimes]q], gIn, Join[fOut, gOut], getLabel[p]\[CircleTimes]getLabel[q]],
+        Proc[Defer[p \[CircleTimes] q], gIn, Join[fOut, gOut], getLabel[p] \[CircleTimes] getLabel[q], CircleTimes],
 
         gOut === {},
-        Proc[Defer[p\[CircleTimes]q], Join[fIn, gIn], fOut, getLabel[p]\[CircleTimes]getLabel[q]],
+        Proc[Defer[p \[CircleTimes] q], Join[fIn, gIn], fOut, getLabel[p] \[CircleTimes] getLabel[q], CircleTimes],
 
         fIn === gOut,
-        Proc[Defer[p @* q], gIn, fOut, getLabel[p]@*getLabel[q]],
+        Proc[Defer[p @* q], gIn, fOut, getLabel[p] @* getLabel[q], Composition],
         True,
         Module[{
             alignment,
@@ -55,7 +63,7 @@ composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
         F = CircleTimes @@ Append[Map[identityProc, outIds], p];
         G = CircleTimes @@ Prepend[Map[identityProc, inIds], q];
         With[{perm = FindPermutation[Join[outIds, fIn], Join[gOut, inIds]]},
-            If[OrderedQ @   PermutationList[perm],
+            If[OrderedQ @ PermutationList[perm],
                 F @* G,
                 F @* permutationProc[perm, Join[gOut, inIds]] @* G
             ]
@@ -106,9 +114,3 @@ procIn[p : Proc[_, in_, ___]] := {p -> in}
 procOut[Proc[Defer[CircleTimes[ps__Proc]], ___]] := Catenate[procOut /@ {ps}]
 procOut[Proc[Defer[Composition[ps__Proc]], ___]] := procOut @ First@{ps}
 procOut[p : Proc[_, _, out_, ___]] := {p -> out}
-
-
-
-transposeProc[Proc[f_, in_, out_, label_, opts : OptionsPattern[Proc]]] :=
-    Proc[f, Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
-         label, "Transpose" -> Not[OptionValue[Proc, {opts}, "Transpose"]]]

@@ -5,41 +5,56 @@ PackageExport["ProcGraph"]
 
 Options[ProcGraph] = {
     "ComposeDistance" -> Automatic,
-    "ParallelComposeDistance" -> Automatic, "AddTerminals" -> False,
+    "ParallelComposeDistance" -> Automatic,
+    "AddTerminals" -> False,
     "OutlineProcess" -> False, "ShowLabels" -> True,
     "ArrowPosition" -> Automatic,
     "Size" -> Automatic};
 
+
 ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
     If[TrueQ[OptionValue["AddTerminals"]],
-        Return@ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
+        Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
     ];
-
     Graph[{Annotation[p, {
         VertexCoordinates -> {0, 0},
         VertexSize -> MapAt[Replace[Automatic -> 1],
-            MapAt[Replace[Automatic -> procArity[p]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
+            MapAt[Replace[Automatic -> Max[procArity[p], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
             2
         ],
         VertexShapeFunction ->
-            With[{
+            Module[{
                 inArity = Length[in], outArity = Length[out],
-                name = getLabel[p],
+                tag = procTag[p],
                 label = If[TrueQ @ OptionValue["ShowLabels"], getLabel[p], ""],
-                arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.25
+                arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.25,
+                shape = Which[
+                    procArity[p] == 0,
+                    "Diamond",
+                    procInArity[p] == 0,
+                    "DownTriangle",
+                    procOutArity[p] == 0,
+                    "UpTriangle",
+                    True,
+                    "Trapezoid"
+                ],
+                shapeFun,
+                outlineShapeFun
             },
-            With[{shapeFun = Which[
-                MatchQ[name, "\[Delta]"],
+            outlineShapeFun = procShape[#1, #3[[1]], #3[[2]], "Shape" -> shape] &;
+
+            shapeFun = Which[
+                MatchQ[tag, "id"],
                 Function @ With[{dir = 1 - 2 Boole @ backwardTypeQ[#2[[2, 1]]]},
 
-                    ArrowUp[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "", 
+                    ArrowUp[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
                             "Direction" -> dir, "ArrowPosition" -> arrowPos]
                 ],
 
-                MatchQ[name, "\[ScriptCapitalT]" | "\[ScriptCapitalI]"],
+                MatchQ[tag, "initial" | "terminal"],
                 {} &,
 
-                MatchQ[name, Subscript["\[Pi]", __]],
+                MatchQ[tag, "permutation"],
                 With[{xs = Range @ Length @ in},
 
                     Function[{coord, v, size},
@@ -55,8 +70,8 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                     ]
                 ],
 
-                MatchQ[name, "\[Union]"] && ! transposeQ[p] || MatchQ[name, "\[Intersection]"] && transposeQ[p],
-                Function[{coord, v, size}, {
+                MatchQ[tag, "cup" | "cap"],
+                Function[{coord, v, size}, If[Length[in] == 0, {
                     Arrowheads[{{Medium (2 Boole[backwardTypeQ @ out[[1]]] - 1), arrowPos}}],
 
                     Arrow[BezierCurve @ {
@@ -66,11 +81,8 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                         coord + {edgeSideShift[2, size, 2], 1 / 2}
                         }
                     ]
-                }],
-
-                MatchQ[name, "\[Intersection]"] && ! transposeQ[p] || MatchQ[name, "\[Union]"] && transposeQ[p],
-                Function[{coord, v, size}, {
-                    Arrowheads[{{Medium (1 - 2 Boole[backwardTypeQ@in[[1]]]), arrowPos}}],
+                }, {
+                    Arrowheads[{{Medium (1 - 2 Boole[backwardTypeQ @ in[[1]]]), arrowPos}}],
 
                     Arrow[BezierCurve @ {
                         coord + {edgeSideShift[1, size, 2], - 1 / 2},
@@ -78,20 +90,36 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                         coord + {edgeSideShift[2, size, 2], 0}, 
                         coord + {edgeSideShift[2, size, 2], - 1 / 2}
                     }]
-                }],
+                }]],
 
                 True,
-                procShape[#1, label, #3[[1]], #3[[1]], #3[[2]]] &
-            ]},
-            If[TrueQ[OptionValue["OutlineProcess"]],
-            {
-                shapeFun[##],
-                FaceForm[Transparent], EdgeForm[Dashed],
-                procShape[#1, "", #3[[1]], #3[[1]], #3[[2]]]
-            } &,
-            shapeFun[##] &
-            ]
-         ]]
+                If[ MatchQ[label, _Transpose],
+                    With[{fun = outlineShapeFun},
+                        GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &
+                    ],
+                    outlineShapeFun
+                ]
+            ];
+            With[{fun = shapeFun},
+                If[TrueQ[OptionValue["OutlineProcess"]],
+                    shapeFun = Function[{fun[##],
+                        FaceForm[Transparent], EdgeForm[Dashed],
+                        outlineShapeFun[##]
+                    }]
+                ]
+            ];
+            With[{fun = shapeFun},
+                If[! MatchQ[tag, "cap" | "cup" | "initial" | "terminal" | "id" | "permutation"],
+                    shapeFun = {
+                        fun[##],
+                        Text[Style[label, FontSize -> 16],
+                            #1 + {0, Switch[shape, "UpTriangle", - #3[[2]] / 4, "DownTriangle", #3[[2]] / 4, _, 0]}, Center]
+                    } &
+                ]
+            ];
+
+            shapeFun
+         ]
       }
     ]},
     (* edges *)
@@ -99,7 +127,8 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
     ]
 ]
 
-ProcGraph[Proc[f : _Composition | _CircleTimes, args__], opts : OptionsPattern[]] :=
+
+ProcGraph[Proc[f : _Composition | _CircleTimes | _Transpose, args__], opts : OptionsPattern[]] :=
     ProcGraph[Proc[Defer[f], args], opts]
 
 
@@ -110,7 +139,7 @@ ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : Options
     vertices, edges,
     vertexSize, vertexCoordinates,
     vertexXShifts, vertexYShifts, vertexCoordinateShifts,
-    newVertexCoordinates
+    shiftedGraphs, newVertexCoordinates
 },
     If[TrueQ[OptionValue["AddTerminals"]],
         Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
@@ -119,8 +148,8 @@ ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : Options
     graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {Automatic, size[[2]]}, opts] &, {ps}];
     {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
     With[{
-        scaleWidth = If[size[[1]] =!= Automatic && OptionValue["ParallelComposeDistance"] =!= Automatic,
-            (size[[1]] - (Length[{ps}] - 1) * OptionValue["ParallelComposeDistance"]) / Total[graphWidths],
+        scaleWidth = If[size[[1]] =!= Automatic,
+            (size[[1]] - (Length[{ps}] - 1) * Replace[OptionValue["ParallelComposeDistance"], Automatic -> 1]) / Total[graphWidths],
             1
         ]
     },
@@ -144,13 +173,9 @@ ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : Options
     ];
     vertexYShifts = Map[- Mean[#] &, vertexCoordinates[[All, All, 2]]];
     vertexCoordinateShifts = Thread[{vertexXShifts, vertexYShifts}];
-
-    newVertexCoordinates = Association @ Catenate @ MapThread[
-        Function[{vs, coords, shift},
-            MapThread[#1 -> #2 + shift &, {vs, coords}]
-        ],
-        {vertices, vertexCoordinates, vertexCoordinateShifts}
-    ];
+    shiftedGraphs = MapThread[shiftVertices, {graphs, vertexCoordinateShifts}];
+    shiftedGraphs = MapThread[shiftVertices[#1, {0, #2[[2]]}] &, {shiftedGraphs, Minus @* graphCenter /@ shiftedGraphs}];
+    newVertexCoordinates = Association[graphVertexCoordinates /@ shiftedGraphs];
 
     Graph[Catenate @ vertices, edges,
         VertexCoordinates -> newVertexCoordinates,
@@ -179,7 +204,7 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
     graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {size[[1]], Automatic}, opts] &, {ps}];
     {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
     If[size[[1]] === Automatic,
-        graphs = Map[ProcGraph[#, "AddTerminals" -> False,
+        graphs = Map[ProcGraph[#, "AddTerminals" -> False, "ParallelComposeDistance" -> Automatic,
         "Size" -> {Max[graphWidths], size[[2]]}, opts] &, {ps}];
         {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
     ];
