@@ -18,7 +18,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
     ];
     Graph[{Annotation[p, {
         VertexCoordinates -> {0, 0},
-        VertexSize -> MapAt[Replace[Automatic -> 1],
+        VertexSize -> MapAt[Min[Replace[#, Automatic -> 1], 1] & ,
             MapAt[Replace[Automatic -> Max[procArity[p], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
             2
         ],
@@ -27,7 +27,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                 inArity = Length[in], outArity = Length[out],
                 tag = procTag[p],
                 label = If[TrueQ @ OptionValue["ShowLabels"], getLabel[p], ""],
-                arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.25,
+                arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
                 shape = Which[
                     procArity[p] == 0,
                     "Diamond",
@@ -46,9 +46,11 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
             shapeFun = Which[
                 MatchQ[tag, "id"],
                 Function @ With[{dir = 1 - 2 Boole @ backwardTypeQ[#2[[2, 1]]]},
-
-                    ArrowUp[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
+                    {
+                        Black,
+                        ArrowUp[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
                             "Direction" -> dir, "ArrowPosition" -> arrowPos]
+                    }
                 ],
 
                 MatchQ[tag, "initial" | "terminal"],
@@ -63,8 +65,11 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                             toShift = {edgeSideShift[toIndex, size, outArity], 1 / 2},
                             dir = 1 - 2 Boole @ backwardTypeQ[v[[2, fromIndex]]]
                         },
-                        ArrowUp[coord + fromShift, coord + toShift, "",
-                                "Direction" -> dir, "ArrowPosition" -> arrowPos]
+                        {
+                            Black,
+                            ArrowUp[coord + fromShift, coord + toShift, "",
+                                "Direction" -> dir, "ArrowPosition" -> arrowPos / 2]
+                        }
                         ]
                         ], {p @@ xs, xs}]
                     ]
@@ -73,7 +78,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                 MatchQ[tag, "cup" | "cap"],
                 Function[{coord, v, size}, If[Length[in] == 0, {
                     Arrowheads[{{Medium (2 Boole[backwardTypeQ @ out[[1]]] - 1), arrowPos}}],
-
+                    Black,
                     Arrow[BezierCurve @ {
                         coord + {edgeSideShift[1, size, 2], 1 / 2},
                         coord + {edgeSideShift[1, size, 2], 0},
@@ -83,7 +88,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                     ]
                 }, {
                     Arrowheads[{{Medium (1 - 2 Boole[backwardTypeQ @ in[[1]]]), arrowPos}}],
-
+                    Black,
                     Arrow[BezierCurve @ {
                         coord + {edgeSideShift[1, size, 2], - 1 / 2},
                         coord + {edgeSideShift[1, size, 2], 0},
@@ -113,7 +118,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                     shapeFun = {
                         fun[##],
                         Text[Style[label, FontSize -> 16],
-                            #1 + {0, Switch[shape, "UpTriangle", - #3[[2]] / 4, "DownTriangle", #3[[2]] / 4, _, 0]}, Center]
+                            #1 + {0, 0(*Switch[shape, "UpTriangle", - #3[[2]] / 4, "DownTriangle", #3[[2]] / 4, _, 0]*)}, Center]
                     } &
                 ]
             ];
@@ -135,6 +140,7 @@ ProcGraph[Proc[f : _Composition | _CircleTimes | _Transpose, args__], opts : Opt
 ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
     graphs, size,
     graphWidths, graphHeights,
+    wideProcPositions, qs,
     parallelComposeDistance,
     vertices, edges,
     vertexSize, vertexCoordinates,
@@ -147,14 +153,16 @@ ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : Options
     size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
     graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {Automatic, size[[2]]}, opts] &, {ps}];
     {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
+    wideProcPositions = Map[procArity[#] > 1 &, {ps}];
+    qs = Pick[{ps}, wideProcPositions];
     With[{
-        scaleWidth = If[size[[1]] =!= Automatic,
-            (size[[1]] - (Length[{ps}] - 1) * Replace[OptionValue["ParallelComposeDistance"], Automatic -> 1]) / Total[graphWidths],
+        scaleWidth = If[size[[1]] =!= Automatic && Length[qs] > 0,
+            (size[[1]] - (Length[{ps}] - Length[qs]) - (Length[{ps}] - 1) * Replace[OptionValue["ParallelComposeDistance"], Automatic -> 1]) / Total[Pick[graphWidths, wideProcPositions]],
             1
         ]
     },
-        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * scaleWidth, Max[graphHeights]}, opts] &,
-            {{ps}, graphWidths}
+        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * If[#3 > 1, scaleWidth, 1], Max[graphHeights]}, opts] &,
+            {{ps}, graphWidths, procArity /@ {ps}}
         ];
         {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
     ];
@@ -241,12 +249,15 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
                     fromShift = {edgeSideShift[i, newVertexSize[v], outArities[v]], 1 / 2},
                     toShift = {edgeSideShift[j, newVertexSize[w], inArities[w]], - 1 / 2},
                     dir = 1 - 2 Boole @ OptionValue[SystemType, Options[v[[3, i]]], "Backward"],
-                    label = If[TrueQ @ OptionValue["ShowLabels"], Last @ getLabel[e], ""],
+                    label = If[TrueQ[OptionValue["ShowLabels"]] && Not[procTag[v] === "id"(* || procTag[w] === "id"*)], Last @ getLabel[e], ""],
                     pos = OptionValue["ArrowPosition"]
                 },
                 e -> Function[
-                    ArrowUp[#1[[1]] + fromShift, #1[[-1]] + toShift, label,
+                    {
+                        Black,
+                        ArrowUp[#1[[1]] + fromShift, #1[[-1]] + toShift, label,
                             "Direction" -> dir, "ArrowPosition" -> pos]
+                    }
                 ]
                 ]
             ]],

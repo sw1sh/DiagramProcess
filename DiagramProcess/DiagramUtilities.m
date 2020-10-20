@@ -41,22 +41,22 @@ shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[
 
 Options[procShape] = {"Shape" -> "Trapezoid"}
 
-procShape[coord_, w_, h_, OptionsPattern[]] := With[{a = w - 1 / 4}, {
+procShape[coord_, w_, h_, OptionsPattern[]] := {
     FaceForm[White], EdgeForm[Black],
     Translate[
         Switch[OptionValue["Shape"],
             "Diamond",
             Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, h / 2}}],
             "UpTriangle",
-            Polygon[{{0, 0}, {w, 0}, {w / 2, h / 2}, {0, h / 4}}],
+            Polygon[{{0, 0}, {w, 0}, {w / 2, h}, {0, h / 2}}],
             "DownTriangle",
-            Polygon[{{0, h}, {w, h}, {w / 2, h / 2}, {0, 3 * h / 4}}],
+            Polygon[{{0, h}, {w, h}, {w / 2, 0}, {0, h / 2}}],
             _,
-            ResourceFunction["Trapezoid"][a, 90 Degree, w, ArcTan[w - a, h]]
+            Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}]
         ],
         coord - {w / 2, h / 2}
     ]
-}]
+}
 
 
 Options[ArrowUp] = {"Direction" -> 1, "ArrowPosition" -> Automatic}
@@ -82,8 +82,8 @@ betweenEdges[p : Proc[f_, pIn_, pOut_, ___], q : Proc[g_, qIn_, qOut_, ___]] := 
 },
     If[ Length[in] == 0 || Length[out] == 0,
         {},
-    MapThread[DirectedEdge[#1[[1, 1]], #2[[1, 1]], {#1[[2]] -> #2[[2]], #1[[1, 2]]}] &, {out, in}]
-]
+        MapThread[DirectedEdge[#1[[1, 1]], #2[[1, 1]], {#1[[2]] -> #2[[2]], #1[[1, 2]]}] &, {out, in}]
+    ]
 ]
 
 
