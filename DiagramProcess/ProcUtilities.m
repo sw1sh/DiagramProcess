@@ -1,8 +1,9 @@
 Package["DiagramProcess`"]
 
 PackageExport["transposeProc"]
+PackageExport["flattenProc"]
+PackageExport["traceProc"]
 
-PackageScope["flattenProc"]
 PackageScope["composeProcs"]
 PackageScope["procInArity"]
 PackageScope["procOutArity"]
@@ -36,40 +37,60 @@ flattenProc[p_Proc] := p //. Map[
 ]
 
 
-composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] := 
+composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
     Which[
-        fIn === {},
-        Proc[Defer[p \[CircleTimes] q], gIn, Join[fOut, gOut], getLabel[p] \[CircleTimes] getLabel[q], CircleTimes],
+     (*   fIn === {},
+        Proc[Defer[p @* q], gIn, Join[fOut, gOut], getLabel[p] @* getLabel[q], Composition],
 
         gOut === {},
-        Proc[Defer[p \[CircleTimes] q], Join[fIn, gIn], fOut, getLabel[p] \[CircleTimes] getLabel[q], CircleTimes],
-
+        Proc[Defer[p @* q], Join[fIn, gIn], fOut, getLabel[p] @* getLabel[q], Composition],
+*)
         fIn === gOut,
         Proc[Defer[p @* q], gIn, fOut, getLabel[p] @* getLabel[q], Composition],
+
         True,
         Module[{
-            alignment,
-            aligned,
-            outEnds, inEnds,
-            outIds, inIds,
-            F, G
+            in, out,
+            F, G, perm
         },
-        alignment = SequenceAlignment[gOut, fIn];
-        aligned = Catenate @ Cases[alignment, {Except[_List] ..}, 1];
-        outEnds = Catenate @ Cases[alignment, {x_List, {}} :> x, 1];
-        inEnds = Catenate @ Cases[alignment, {{}, y_List} :> y, 1];
-        outIds = Join[Catenate @ Cases[alignment, {x_List, Except[{}]} :> x, 1], Complement[outEnds, inEnds]];
-        inIds = Join[Catenate@Cases[alignment, {Except[{}], y_List} :> y, 1], Complement[inEnds, outEnds]];
-        F = CircleTimes @@ Append[Map[identityProc, outIds], p];
-        G = CircleTimes @@ Prepend[Map[identityProc, inIds], q];
-        With[{perm = FindPermutation[Join[outIds, fIn], Join[gOut, inIds]]},
-            If[OrderedQ @ PermutationList[perm],
-                F @* G,
-                F @* permutationProc[perm, Join[gOut, inIds]] @* G
-            ]
+        in = Join[ResourceFunction["MultisetComplement"][gOut, fIn], fIn];
+        out = Join[gOut, ResourceFunction["MultisetComplement"][fIn, gOut]];
+        F = CircleTimes @@ Append[identityProc /@ ResourceFunction["MultisetComplement"][in, fIn], p];
+        G = CircleTimes @@ Prepend[identityProc /@ ResourceFunction["MultisetComplement"][out, gOut], q];
+        perm = FindPermutation[F[[2]], G[[3]]];
+        If[OrderedQ @ PermutationList[perm],
+            F @* G,
+            F @* permutationProc[perm, G[[3]]] @* G
+        ]
         ]
    ]
+
+
+traceProc[p_Proc, ii_Integer : 1, jj_Integer : 1] := Module[{
+    i = Max[Min[ii, Length[p[[2]]]], 1],
+    j = Max[Min[jj, Length[p[[3]]]], 1],
+    in, out, q
+},
+    in = p[[2, i]];
+    out = p[[3, j]];
+    q = If[in === out, identityProc[OverBar[in]], castProc[OverBar[in], OverBar[out]]];
+    Composition @@ {
+        CircleTimes @@ Prepend[identityProc /@ Drop[p[[3]], {j}], capProc[out]],
+        CircleTimes[q, Composition @@ {
+            If[j > 1,
+                permutationProc[Cycles[{{1, j}}], p[[3]]],
+                Nothing
+            ],
+            p,
+            If[i > 1,
+                permutationProc[Cycles[{{1, i}}], Permute[p[[2]], Cycles[{{1, i}}]]],
+                Nothing
+            ]
+       }],
+        CircleTimes @@ Prepend[identityProc /@ Drop[p[[2]], {i}], cupProc[in]]
+    }
 ]
+
 
 
 unProc[p_Proc] := unLabel[p //. Proc[op_, __] :> op /. Defer -> Identity]

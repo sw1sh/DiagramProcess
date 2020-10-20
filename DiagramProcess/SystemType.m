@@ -16,7 +16,11 @@ SystemType[CircleTimes[ts__]] := With[{t = CircleTimes @@ Map[SystemType, {ts}]}
 
 SystemType[OverBar[type_], opts : OptionsPattern[]] := reverseType @ SystemType[type]
 
-SystemType[t : SystemType[__]] := t
+SystemType /: OverBar[t_SystemType] := reverseType @ t
+
+SystemType[t_SystemType] := t
+
+SystemType[SystemType[t_, ___], args__] := SystemType[t, args]
 
 
 backwardTypeQ[SystemType[_, opts : OptionsPattern[]]] :=

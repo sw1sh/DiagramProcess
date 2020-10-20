@@ -80,7 +80,10 @@ betweenEdges[p : Proc[f_, pIn_, pOut_, ___], q : Proc[g_, qIn_, qOut_, ___]] := 
     in = Catenate[enumerate @* Thread /@ procIn[p]],
     out = Catenate[enumerate @* Thread /@ procOut[q]]
 },
+    If[ Length[in] == 0 || Length[out] == 0,
+        {},
     MapThread[DirectedEdge[#1[[1, 1]], #2[[1, 1]], {#1[[2]] -> #2[[2]], #1[[1, 2]]}] &, {out, in}]
+]
 ]
 
 

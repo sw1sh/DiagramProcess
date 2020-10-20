@@ -2,6 +2,8 @@ Package["DiagramProcess`"]
 
 PackageExport["DiagramProcess"]
 
+PackageExport["ProcessTrace"]
+
 
 Options[DiagramProcess] = {}
 
@@ -18,23 +20,35 @@ DiagramProcess[expr : Except[_Proc], opts : OptionsPattern[]] :=
 
 DiagramProcess["Identity" | "Id" | "\[Delta]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[identityProc[a], opts]
+
 DiagramProcess["Cap" | "\[Intersection]" | "\[Cap]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[capProc[a], opts]
+
 DiagramProcess["Cup" | "\[Union]" | "\[Cup]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[cupProc[a], opts]
 
-DiagramProcess /: p_DiagramProcess @* q_DiagramProcess :=
-    DiagramProcess[p["Process"] @* q["Process"]]
-DiagramProcess /: CircleTimes[p_DiagramProcess, q_DiagramProcess] :=
-    DiagramProcess[CircleTimes[p["Process"], q["Process"]], Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
+
+DiagramProcess /: p_DiagramProcess @* q_DiagramProcess := DiagramProcess[p["Process"] @* q["Process"],
+    Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
+
+
+DiagramProcess /: CircleTimes[p_DiagramProcess, q_DiagramProcess] := DiagramProcess[CircleTimes[p["Process"], q["Process"]],
+    Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
+
 
 DiagramProcess /: Transpose[p : _DiagramProcess] := DiagramProcess[transposeProc @ p["Process"]]
+
+
+ProcessTrace[p : _DiagramProcess, n_Integer : 1, m_Integer : 1] := DiagramProcess[traceProc[p["Process"], n, m]]
+
+DiagramProcess /: Tr[p : _DiagramProcess] := ProcessTrace[p]
+
 
 DiagramProcess /: MakeBoxes[DiagramProcess[p_Proc, opts : OptionsPattern[]], form_] := Module[{
     above, below
 },
     above = {
-        {BoxForm`SummaryItem[{"Process: ", getLabel[p]}], SpanFromLeft},
+        {BoxForm`SummaryItem[{"Process: ", TraditionalForm[getLabel[p] /. Composition -> SmallCircle]}], SpanFromLeft},
         {BoxForm`SummaryItem[{"Input: ", p[[2]]}], BoxForm`SummaryItem[{"Output: ", p[[3]]}]
         }
     };

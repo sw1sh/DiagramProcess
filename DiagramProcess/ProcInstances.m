@@ -12,7 +12,7 @@ identityProc[in_] := Proc[Identity, {SystemType @ in}, {SystemType @ in}, Labele
 
 
 permutationProc[perm_Cycles, in_List] := With[{
-    ps = PermutationList[perm],
+    ps = PermutationList[perm, Length[in]],
     invPerm = InversePermutation @ perm,
     inTypes = SystemType /@ in
 },
