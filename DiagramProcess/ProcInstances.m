@@ -5,6 +5,7 @@ PackageExport["permutationProc"]
 PackageExport["swapProc"]
 PackageExport["cupProc"]
 PackageExport["capProc"]
+PackageExport["copyProc"]
 PackageExport["withTerminals"]
 
 
@@ -28,6 +29,9 @@ cupProc[out_] := Proc["\[Cup]", {}, {reverseType @ SystemType[out], SystemType[o
 
 
 capProc[in_] := ReplacePart[transposeProc @ cupProc[in], {4 -> Labeled[Unique["cap"], "\[Intersection]"], 5 -> "cap"}]
+
+
+copyProc[in_, n_ : 2] := Proc[{#, #} &, {SystemType[in]}, Table[SystemType[in], n], Labeled[Unique["copy"], ""], "copy"]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{

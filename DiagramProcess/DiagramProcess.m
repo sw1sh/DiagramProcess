@@ -27,6 +27,15 @@ DiagramProcess["Cap" | "\[Intersection]" | "\[Cap]", a_, opts : OptionsPattern[]
 DiagramProcess["Cup" | "\[Union]" | "\[Cup]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[cupProc[a], opts]
 
+DiagramProcess["Permutation", perm_Cycles, in_List, opts : OptionsPattern[]] :=
+    DiagramProcess[permutationProc[perm, in], opts]
+
+DiagramProcess["Swap", a_, b_, opts : OptionsPattern[]] :=
+    DiagramProcess[swapProc[a, b], opts]
+
+DiagramProcess["Copy", a_, opts : OptionsPattern[]] :=
+    DiagramProcess[copyProc[a], opts]
+
 
 DiagramProcess /: p_DiagramProcess @* q_DiagramProcess := DiagramProcess[p["Process"] @* q["Process"],
     Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
@@ -36,10 +45,10 @@ DiagramProcess /: CircleTimes[p_DiagramProcess, q_DiagramProcess] := DiagramProc
     Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
 
 
-DiagramProcess /: Transpose[p : _DiagramProcess] := DiagramProcess[transposeProc @ p["Process"]]
+DiagramProcess /: Transpose[p : _DiagramProcess] := DiagramProcess[transposeProc @ p["Process"], Sequence @@ Options[p]]
 
 
-ProcessTrace[p : _DiagramProcess, n_Integer : 1, m_Integer : 1] := DiagramProcess[traceProc[p["Process"], n, m]]
+ProcessTrace[p : _DiagramProcess, n_Integer : 1, m_Integer : 1] := DiagramProcess[traceProc[p["Process"], n, m], Sequence @@ Options[p]]
 
 DiagramProcess /: Tr[p : _DiagramProcess] := ProcessTrace[p]
 

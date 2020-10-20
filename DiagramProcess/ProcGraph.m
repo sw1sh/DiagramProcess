@@ -97,6 +97,16 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{},
                     }]
                 }]],
 
+                MatchQ[tag, "copy"],
+                Function[{coord, v, size}, {
+                    Black,
+                    Table[
+                        ArrowUp[coord + {0, - 1 / 2}, coord + {edgeSideShift[i, size, outArity], 1 / 2}, "",
+                                "ArrowPosition" -> arrowPos / 2],
+                        {i, Length @ out}
+                    ]
+                }],
+
                 True,
                 If[ MatchQ[label, _Transpose],
                     With[{fun = outlineShapeFun},
