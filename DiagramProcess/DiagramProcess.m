@@ -10,13 +10,20 @@ Options[DiagramProcess] = {}
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
 DiagramProcess[p_Proc, ___]["Process"] := p
+
 DiagramProcess[p_Proc, ___]["Diagram" | "Graph", opts : OptionsPattern[ProcGraph]] :=
     ProcGraph[p, opts, "AddTerminals" -> True]
+
+
 DiagramProcess[p_Proc, ___][x___] := p[x]
 
 
-DiagramProcess[expr : Except[_Proc], opts : OptionsPattern[]] :=
+DiagramProcess[expr : Except[_Proc | _List], opts : OptionsPattern[]] :=
     DiagramProcess[Proc[expr], opts]
+
+
+DiagramProcess[boxNames_List, opts : OptionsPattern[]] := DiagramProcess[boxNamesProc[boxNames], opts]
+
 
 DiagramProcess["Identity" | "Id" | "\[Delta]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[identityProc[a], opts]

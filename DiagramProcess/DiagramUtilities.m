@@ -1,5 +1,8 @@
 Package["DiagramProcess`"]
 
+PackageExport["graphProc"]
+PackageExport["boxNamesProc"]
+
 PackageScope["ArrowUp"]
 PackageScope["procShape"]
 PackageScope["edgeSideShift"]
@@ -39,6 +42,64 @@ scaleVertices[g_Graph, scale_] := Annotate[g, VertexSize -> MapAt[# * scale &, A
 shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[# + shift &, graphVertexCoordinates[g]]]
 
 
+positionIn[x_List, y_List] := With[{positions = LongestCommonSubsequencePositions[x, y]},
+    If[ Length[positions] > 0,
+        positions[[1, 1]],
+        Infinity
+    ]
+]
+
+graphProc[g_Graph] := Module[{
+   bottomLayer,
+   restGraph
+},
+    bottomLayer = Select[VertexList[g], VertexInDegree[g, #] == 0 &];
+    restGraph = VertexDelete[g, bottomLayer];
+    If[ VertexCount[restGraph] > 0,
+        With[{proc = graphProc[restGraph]}, proc @* Apply[CircleTimes, SortBy[bottomLayer, positionIn[proc[[2]], #[[3]]] &]]],
+        Apply[CircleTimes, bottomLayer]
+    ]
+]
+
+stripTypeSubsripts[SystemType[t_, args___]] := SystemType[Replace[t, Subscript[x_, _] :> x], args]
+stripTypeSubsripts[p_Proc] := MapAt[Map[stripTypeSubsripts], p, {{2}, {3}}]
+
+removeCycles[g_Graph] := Module[{
+    loops, cycles, counts
+},
+    loops = EdgeList[g, DirectedEdge[x_, x_, ___]];
+    cycles = FindCycle[EdgeDelete[g, loops], Infinity, All];
+    counts = Counts[Catenate @ cycles];
+    Join[loops, DeleteDuplicates[First @* MaximalBy[counts] /@ cycles]]
+]
+
+boxNamesProc[boxes_List] := Module[{procs, ins, outs, edges, graph},
+    procs = Proc /@ boxes;
+    ins = #[[2]] & /@ procs;
+    outs = #[[3]] & /@ procs;
+    edges = Catenate @ MapIndexed[
+        Function[With[{pos = FirstPosition[outs, #1]},
+            If[ ! MissingQ[pos],
+                With[{from = procs[[pos[[1]]]], to = procs[[#2[[1]]]], i = pos[[2]], j = #2[[2]], type = #1},
+                    (*If[ pos[[1]] === #2[[1]],
+                        EdgeList @ ProcGraph[traceProc[stripSubsripts @ from, j, i]],
+                        stripSubsripts @ DirectedEdge[from, to, {i -> j, type}]
+                    ]*)
+                    DirectedEdge[stripTypeSubsripts @ from, stripTypeSubsripts @ to, {i -> j, type}]
+                ],
+                Nothing
+            ]
+        ]],
+        ins,
+        {2}
+    ];
+    graph = Graph[Union[stripTypeSubsripts /@ procs, VertexList[edges]], edges];
+    cycleEdges = removeCycles[graph];
+    cyclessProc = graphProc @ EdgeDelete[graph, cycleEdges];
+    Fold[traceProc[#1, #2[[3, 1, 1]], #2[[3, 1, 2]]] &, cyclessProc, cycleEdges]
+]
+
+
 Options[procShape] = {"Shape" -> "Trapezoid"}
 
 procShape[coord_, w_, h_, OptionsPattern[]] := {
@@ -59,11 +120,11 @@ procShape[coord_, w_, h_, OptionsPattern[]] := {
 }
 
 
-Options[ArrowUp] = {"Direction" -> 1, "ArrowPosition" -> Automatic}
+Options[ArrowUp] = {"ArrowSize" -> 1, "ArrowPosition" -> Automatic}
 
 ArrowUp[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Arrowheads[{{
-        Medium OptionValue["Direction"],
+        Small Sign[OptionValue["ArrowSize"]],
         OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
     ],
     Arrow[
