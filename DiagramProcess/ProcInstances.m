@@ -1,6 +1,7 @@
 Package["DiagramProcess`"]
 
 PackageExport["identityProc"]
+PackageExport["castProc"]
 PackageExport["permutationProc"]
 PackageExport["swapProc"]
 PackageExport["cupProc"]
@@ -9,7 +10,10 @@ PackageExport["copyProc"]
 PackageExport["withTerminals"]
 
 
-identityProc[in_] := Proc[Identity, {SystemType @ in}, {SystemType @ in}, Labeled[Unique["\[Delta]"], "\[Delta]"], "id"]
+identityProc[in_] := Proc[Identity, {SystemType @ in}, {SystemType @ in}, Labeled[Unique["\[Delta]"], "1"], "id"]
+
+
+castProc[in_, out_] := Proc["Cast", {SystemType @ in}, {SystemType @ out}, Labeled[Unique["cast"], "1"], "cast"]
 
 
 permutationProc[perm_Cycles, in_List] := With[{
@@ -31,7 +35,7 @@ cupProc[out_] := Proc["\[Cup]", {}, {reverseType @ SystemType[out], SystemType[o
 capProc[in_] := ReplacePart[transposeProc @ cupProc[in], {4 -> Labeled[Unique["cap"], "\[Intersection]"], 5 -> "cap"}]
 
 
-copyProc[in_, n_ : 2] := Proc[{#, #} &, {SystemType[in]}, Table[SystemType[in], n], Labeled[Unique["copy"], ""], "copy"]
+copyProc[in_, n_ : 2] := Proc[{#, #} &, {SystemType[in]}, Table[SystemType[in], n], Labeled[Unique["copy"], "\[Gamma]"], "copy"]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{

@@ -29,6 +29,10 @@ Proc[Power[Subscript[f_, As_], Bs_]] := Proc[Subsuperscript[f, As, Bs]]
 
 Proc[Transpose[f_]] := transposeProc @ Proc[f]
 
+Proc[Tr[f_]] := traceProc @ Proc[f]
+
+Proc[1, {in_}, {out_}, args__] := If[in === out, identityProc[in], castProc[in, out]]
+
 
 Proc[p_Proc] := p
 Proc /: Composition[ps__Proc] :=
