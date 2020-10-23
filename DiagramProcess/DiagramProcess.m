@@ -5,20 +5,26 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = {}
+Options[DiagramProcess] = {"Simplify" -> False}
 
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
 DiagramProcess[p_Proc, ___]["Process"] := p
 
-DiagramProcess[p_Proc, ___]["Diagram" | "Graph", opts : OptionsPattern[ProcGraph]] :=
-    ProcGraph[p, opts, "AddTerminals" -> True]
+DiagramProcess[p_Proc, opts : OptionsPattern[]]["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
+    g = ProcGraph[p, gopts]
+},
+    If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph @ g, g]
+]
 
 
 DiagramProcess[p_Proc, ___][x___] := p[x]
 
 
-DiagramProcess[expr : Except[_Proc | _List], opts : OptionsPattern[]] :=
+DiagramProcess[DiagramProcess[p_, ___], args___] := DiagramProcess[p, args]
+
+
+DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List], opts : OptionsPattern[]] :=
     DiagramProcess[Proc[expr], opts]
 
 
@@ -72,7 +78,11 @@ DiagramProcess /: MakeBoxes[DiagramProcess[p_Proc, opts : OptionsPattern[]], for
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         p,
-        GraphPlot[ProcGraph[p, opts, "ShowLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7], ImageSize -> Tiny],
+        GraphPlot[DiagramProcess[p, Sequence @@ FilterRules[{opts}, Options[DiagramProcess]]][
+            "Diagram",
+            Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
+            ], ImageSize -> Tiny
+        ],
         above,
         below,
         form,

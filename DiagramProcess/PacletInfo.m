@@ -1,6 +1,6 @@
 Paclet[
   Name -> "DiagramProcess",
-  Version -> "0.2",
+  Version -> "0.3",
   MathematicaVersion -> "12.1+",
   Description -> "",
   Creator -> "swish",

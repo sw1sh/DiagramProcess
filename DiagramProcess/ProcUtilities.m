@@ -24,7 +24,7 @@ transposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse
 transposeProc[p : Proc[f_, in_, out_, ___]] :=
     Proc[f, Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
         With[{label = getLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]],
-        procTag[p]
+        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
     ]
 
 
@@ -53,10 +53,10 @@ composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
             in, out,
             F, G, perm
         },
-        in = Join[ResourceFunction["MultisetComplement"][gOut, fIn], fIn];
-        out = Join[gOut, ResourceFunction["MultisetComplement"][fIn, gOut]];
-        F = CircleTimes @@ Append[identityProc /@ ResourceFunction["MultisetComplement"][in, fIn], p];
-        G = CircleTimes @@ Prepend[identityProc /@ ResourceFunction["MultisetComplement"][out, gOut], q];
+        in = With[{l = ResourceFunction["MultisetComplement"][gOut, fIn]}, Insert[l, Splice[fIn], FirstPosition[l, First[fIn, None]] /. _Missing -> -1]];
+        out = With[{l = ResourceFunction["MultisetComplement"][fIn, gOut]}, Insert[l, Splice[gOut], FirstPosition[l, First[gOut, None]] /. _Missing -> 1]];
+        F = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][in, fIn], p, FirstPosition[in, First[fIn, None]] /. _Missing -> -1];
+        G = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][out, gOut], q, FirstPosition[out, First[gOut, None]] /. _Missing -> 1];
         perm = FindPermutation[F[[2]], G[[3]]];
         If[OrderedQ @ PermutationList[perm],
             F @* G,
