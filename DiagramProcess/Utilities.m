@@ -12,10 +12,12 @@ PackageScope["graphReplace"]
 
 
 
-getLabel[Proc[_, _, _, l_, ___]] := getLabel[l]
 getLabel[Labeled[_, l_]] := getLabel[l]
+
 getLabel[DirectedEdge[_, _, l_]] := l
+
 getLabel[e : DirectedEdge[_, _]] := e
+
 getLabel[l_] := l
 
 
@@ -23,10 +25,12 @@ unLabel[expr_] := expr //. Labeled[x_, _] :> x
 
 
 wrap[l_List] := l
+
 wrap[x_] := {x}
 
 
 unWrap[l_List] /; Length[l] == 1 := First[l]
+
 unWrap[x_] := x
 
 

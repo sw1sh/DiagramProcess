@@ -67,6 +67,7 @@ withUniqueTypes[f_, graph_Graph] := Module[{
 
 
 stripTypeSubsripts[SystemType[t_, args___]] := SystemType[Replace[t, Subscript[x_, _] :> x], args]
+
 stripTypeSubsripts[p_Proc] := MapAt[Map[stripTypeSubsripts], p, {{2}, {3}}]
 
 
@@ -108,7 +109,7 @@ cupifyProcGraph[g_Graph] := Module[{
 ]
 
 
-boxNamesProc[boxes_List, opts : OptionsPattern[graphProc]] := Module[{procs, ins, outs, types, edges, graph},
+boxNamesProc[boxes_List, opts : OptionsPattern[graphProc]] := Module[{procs, ins, outs, types, edges},
     procs = Proc /@ boxes;
     ins = #[[2]] & /@ procs;
     outs = #[[3]] & /@ procs;

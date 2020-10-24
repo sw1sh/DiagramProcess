@@ -5,7 +5,7 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = {"Simplify" -> False}
+Options[DiagramProcess] = Join[{"Simplify" -> False}, Options[ProcGraph]]
 
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
@@ -24,12 +24,10 @@ DiagramProcess[p_Proc, ___][x___] := p[x]
 DiagramProcess[DiagramProcess[p_, ___], args___] := DiagramProcess[p, args]
 
 
-DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List], opts : OptionsPattern[]] :=
-    DiagramProcess[Proc[expr], opts]
-
-
 DiagramProcess[boxNames_List, opts : OptionsPattern[]] := DiagramProcess[boxNamesProc[boxNames], opts]
 
+
+DiagramProcess["Empty", opts : OptionsPattern[]] := DiagramProcess[emptyProc[], opts]
 
 DiagramProcess["Identity" | "Id" | "\[Delta]", a_, opts : OptionsPattern[]] :=
     DiagramProcess[identityProc[a], opts]
@@ -50,6 +48,10 @@ DiagramProcess["Copy", a_, opts : OptionsPattern[]] :=
     DiagramProcess[copyProc[a], opts]
 
 
+DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List | _String], opts : OptionsPattern[]] :=
+    DiagramProcess[Proc[expr], opts]
+
+
 DiagramProcess /: p_DiagramProcess @* q_DiagramProcess := DiagramProcess[p["Process"] @* q["Process"],
     Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
 
@@ -66,23 +68,29 @@ ProcessTrace[p : _DiagramProcess, n_Integer : 1, m_Integer : 1] := DiagramProces
 DiagramProcess /: Tr[p : _DiagramProcess] := ProcessTrace[p]
 
 
-DiagramProcess /: MakeBoxes[DiagramProcess[p_Proc, opts : OptionsPattern[]], form_] := Module[{
+DiagramProcess /: Equal[a_DiagramProcess, b_DiagramProcess] := ContainsExactly[
+    EdgeList @ simplifyProcGraph[a["Diagram"]],
+    EdgeList @ simplifyProcGraph[b["Diagram"]]
+]
+
+
+DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]], form_] := Module[{
     above, below
 },
     above = {
-        {BoxForm`SummaryItem[{"Process: ", TraditionalForm[getLabel[p] /. Composition -> SmallCircle]}], SpanFromLeft},
+        {BoxForm`SummaryItem[{"Process: ", TraditionalForm[procLabel[p]]}], SpanFromLeft},
         {BoxForm`SummaryItem[{"Input: ", p[[2]]}], BoxForm`SummaryItem[{"Output: ", p[[3]]}]
         }
     };
     below = {};
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
-        p,
-        GraphPlot[DiagramProcess[p, Sequence @@ FilterRules[{opts}, Options[DiagramProcess]]][
+        d,
+        GraphPlot[d[
             "Diagram",
-            Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
+            Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
             ], ImageSize -> Tiny
-        ],
+        ] /. (FontSize -> _) -> (FontSize -> Tiny),
         above,
         below,
         form,

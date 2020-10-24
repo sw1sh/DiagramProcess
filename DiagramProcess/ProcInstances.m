@@ -1,5 +1,6 @@
 Package["DiagramProcess`"]
 
+PackageExport["emptyProc"]
 PackageExport["identityProc"]
 PackageExport["castProc"]
 PackageExport["permutationProc"]
@@ -10,10 +11,14 @@ PackageExport["copyProc"]
 PackageExport["withTerminals"]
 
 
-identityProc[in_] := Proc[Identity, {SystemType @ in}, {SystemType @ in}, Labeled[Unique["\[Delta]"], "1"], "id"]
+
+emptyProc[] := Proc[Labeled[{} &, Labeled[Unique["empty"], "\[EmptySet]"]], {}, {}, "empty"]
 
 
-castProc[in_, out_] := Proc["Cast", {SystemType @ in}, {SystemType @ out}, Labeled[Unique["cast"], "1"], "cast"]
+identityProc[in_] := Proc[Labeled[Identity, Labeled[Unique["\[Delta]"], "1"]], {SystemType @ in}, {SystemType @ in}, "id"]
+
+
+castProc[in_, out_] := Proc[Labeled["Cast", Labeled[Unique["cast"], "1"]], {SystemType @ in}, {SystemType @ out}, "cast"]
 
 
 permutationProc[perm_Cycles, in_List] := With[{
@@ -21,27 +26,26 @@ permutationProc[perm_Cycles, in_List] := With[{
     invPerm = InversePermutation @ perm,
     inTypes = SystemType /@ in
 },
-    Proc[Permute[{##}, invPerm] &, inTypes, Permute[inTypes, invPerm],
-         Labeled[Unique["\[Pi]"], Subscript["\[Pi]", Row @ ps]], "permutation"]
+    Proc[Labeled[Permute[{##}, invPerm] &, Labeled[Unique["\[Pi]"], Subscript["\[Pi]", Row @ ps]]], inTypes, Permute[inTypes, invPerm], "permutation"]
 ]
 
 
 swapProc[A_, B_] := permutationProc[Cycles[{{1, 2}}], {A, B}]
 
 
-cupProc[out_] := Proc["\[Cup]", {}, {reverseType @ SystemType[out], SystemType[out]}, Labeled[Unique["cup"], "\[Union]"], "cup"]
+cupProc[out_] := Proc[Labeled["Cup", Labeled[Unique["cup"], "\[Union]"]], {}, {reverseType @ SystemType[out], SystemType[out]}, "cup"]
 
 
-capProc[in_] := ReplacePart[transposeProc @ cupProc[in], {4 -> Labeled[Unique["cap"], "\[Intersection]"], 5 -> "cap"}]
+capProc[in_] := ReplacePart[transposeProc @ cupProc[in], {1 -> Labeled["Cap", Labeled[Unique["cap"], "\[Intersection]"]], -1 -> "cap"}]
 
 
-copyProc[in_, n_ : 2] := Proc[{#, #} &, {SystemType[in]}, Table[SystemType[in], n], Labeled[Unique["copy"], "\[Gamma]"], "copy"]
+copyProc[in_, n_ : 2] := Proc[Labeled[{#, #} &, Labeled[Unique["copy"], "\[Gamma]"]], {SystemType[in]}, Table[SystemType[in], n], "copy"]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
    q,
-   initial = Proc[unWrap[{##}] &, in, in, Labeled[Unique["initial"], "\[ScriptCapitalI]"], "initial"],
-   terminal = Proc[unWrap[{##}] &, out, out, Labeled[Unique["terminal"], "\[ScriptCapitalT]"], "terminal"]
+   initial = Proc[Labeled[unWrap[{##}] &, Labeled[Unique["initial"], "\[ScriptCapitalI]"]], in, in, "initial"],
+   terminal = Proc[Labeled[unWrap[{##}] &, Labeled[Unique["terminal"], "\[ScriptCapitalT]"]], out, out, "terminal"]
 },
     q = If[Length @ out > 0, terminal @* p, p];
     flattenProc @ If[Length[in] > 0, q @* initial, q]

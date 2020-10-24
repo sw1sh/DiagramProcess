@@ -2,6 +2,7 @@ Package["DiagramProcess`"]
 
 PackageExport["Proc"]
 
+PackageScope["procLabel"]
 PackageScope["procTag"]
 
 
@@ -10,7 +11,7 @@ Options[Proc] = {};
 (*Construction*)
 
 Proc[Subsuperscript[f_, Row[As_], Row[Bs_]]] :=
-    Proc[f, SystemType /@ As, SystemType /@ Bs, f, None]
+    Proc[f, SystemType /@ As, SystemType /@ Bs, None]
 Proc[Subsuperscript[f_, A_, Bs_Row]] :=
     Proc[Subsuperscript[f, Row @ wrap @ A, Bs]]
 Proc[Subsuperscript[f_, As_Row, B_]] :=
@@ -42,7 +43,7 @@ Proc /: CircleTimes[p_Proc] := p
 Proc /: CircleTimes[ps__Proc] :=
     flattenProc @
         Proc[Defer[CircleTimes[ps]], Catenate[#[[2]] & /@ {ps}],
-          Catenate[#[[3]] & /@ {ps}], CircleTimes @@ Map[getLabel, {ps}], CircleTimes]
+          Catenate[#[[3]] & /@ {ps}], CircleTimes]
 
 Proc /: Transpose[p_Proc] := transposeProc @ p
 
@@ -54,7 +55,14 @@ Proc[f : Except[_Subsuperscript | _Superscript | _Subscript |
     | _CircleTimes]] := Proc[Subsuperscript[f, {}, {}]]
 
 
-procTag[p_Proc] := p[[5]]
+procLabel[Proc[Defer[Composition[ps__]], __]] := SmallCircle @@ Map[procLabel, {ps}]
+
+procLabel[Proc[Defer[CircleTimes[ps__]], __]] := CircleTimes @@ Map[procLabel, {ps}]
+
+procLabel[Proc[f_, __]] := getLabel[f]
+
+
+procTag[p_Proc] := p[[-1]]
 
 
 (* Eval Proc *)
@@ -65,18 +73,18 @@ Proc::typeSizeMissmatch =
 Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
   q = Proc[Defer[Composition[ps]], in, p[[2]], args]
 },
-    With[{y = q @@ PadRight[{x}, Length@in, Missing["Input", getLabel[q]]]},
+    With[{y = q @@ PadRight[{x}, Length @ in, Missing["Input", getLabel[q]]]},
       p @@ PadRight[y, Length[p[[2]]], Missing["Output", getLabel[q]]]]
 ]
 
 (p : Proc[Defer[CircleTimes[ps___Proc]], in_, out_, ___])[x___] :=
-    Catenate @ Parallelize @ MapThread[
+    Catenate @ Parallelize[MapThread[
       wrap[#1 @@ #2] &, {
         {ps},
-        TakeList[PadRight[{x}, Length@in, Missing["Input", getLabel[p]]],
+        TakeList[PadRight[{x}, Length @ in, Missing["Input", getLabel[p]]],
             Length /@ Values[procIn[p]]]
         }
-    ]
+    ], DistributedContexts -> Automatic]
 
 (p : Proc[Except[Defer[_Composition | _CircleTimes]], in_, out_, ___])[x___] := Module[{
   input, output
@@ -89,13 +97,17 @@ Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
 
 (* Boxes *)
 
-Proc /:
-    MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
-  label = getLabel[p] /. Composition -> SmallCircle
+Proc /: MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
+    label = procLabel[p]
 },
-  ToBoxes[
-    Tooltip[Underoverscript[
-      If[MatchQ[label, _Composition | _CircleTimes],
-        Row[{"(", label, ")"}], label], Row @ A, Row @ B],
-      Row[{"Proc", ":", Splice @ A, "\[Rule]", Splice @ B}]], TraditionalForm]
+    ToBoxes[
+        Tooltip[
+            Underoverscript[
+                If[ MatchQ[label, _SmallCircle | _CircleTimes], Row[{"(", label, ")"}], label],
+                Row @ A, Row @ B
+            ],
+        Row[{"Proc", ":", If[Length[A] == 0, \[EmptySet], Splice @ A], "\[Rule]", If[Length[B] == 0, \[EmptySet], Splice @ B]}]
+        ],
+        TraditionalForm
+    ]
 ]

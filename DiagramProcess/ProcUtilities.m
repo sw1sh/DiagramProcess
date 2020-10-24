@@ -22,8 +22,8 @@ transposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse
 transposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[transposeProc /@ {ps}]
 
 transposeProc[p : Proc[f_, in_, out_, ___]] :=
-    Proc[f, Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
-        With[{label = getLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]],
+    Proc[Labeled[f, Transpose[procLabel[p]]], Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
+        With[{label = procLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]],
         procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
     ]
 
@@ -39,14 +39,8 @@ flattenProc[p_Proc] := p //. Map[
 
 composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
     Which[
-     (*   fIn === {},
-        Proc[Defer[p @* q], gIn, Join[fOut, gOut], getLabel[p] @* getLabel[q], Composition],
-
-        gOut === {},
-        Proc[Defer[p @* q], Join[fIn, gIn], fOut, getLabel[p] @* getLabel[q], Composition],
-*)
         fIn === gOut,
-        Proc[Defer[p @* q], gIn, fOut, getLabel[p] @* getLabel[q], Composition],
+        Proc[Defer[p @* q], gIn, fOut, Composition],
 
         True,
         Module[{

@@ -8,7 +8,10 @@ Options[ProcGraph] = {
     "ComposeDistance" -> Automatic,
     "ParallelComposeDistance" -> Automatic,
     "AddTerminals" -> False,
-    "OutlineProcess" -> False, "ShowLabels" -> True,
+    "OutlineProcess" -> False,
+    "ShowArrowLabels" -> False,
+    "ShowProcessLabels" -> True,
+    "ShowWireLabels" -> True,
     "ArrowPosition" -> Automatic,
     "Size" -> Automatic};
 
@@ -26,9 +29,9 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{shap
         VertexShapeFunction -> With[{
                 inArity = Length[in], outArity = Length[out],
                 tag = procTag[p],
-                label = If[TrueQ @ OptionValue["ShowLabels"], getLabel[p], ""],
+                label = If[TrueQ @ OptionValue["ShowProcessLabels"], procLabel[p], ""],
                 arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
-                shape = With[{q = If[MatchQ[getLabel[p], _Transpose], Transpose[p], p]}, Which[
+                shape = With[{q = If[MatchQ[procLabel[p], _Transpose], Transpose[p], p]}, Which[
                     procArity[q] == 0,
                     "Diamond",
                     procInArity[q] == 0,
@@ -40,7 +43,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{shap
                 ]]
         },
             outlineShapeFun = procShape[#1, #3[[1]], #3[[2]], "Shape" -> shape] &;
-            If[ MatchQ[getLabel[p], _Transpose],
+            If[ MatchQ[procLabel[p], _Transpose],
                 With[{fun = outlineShapeFun},
                     outlineShapeFun = GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &
                 ]
@@ -56,7 +59,7 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{shap
                     }
                 ],
 
-                MatchQ[tag, "initial" | "terminal"],
+                MatchQ[tag, "empty" | "initial" | "terminal"],
                 {} &,
 
                 MatchQ[tag, "permutation"],
@@ -122,17 +125,17 @@ ProcGraph[p : Proc[f_, in_, out_, ___], opts : OptionsPattern[]] := Module[{shap
             ];
             With[{fun = shapeFun,
                   inLabels = Inactivate[Table[With[{pos = #1 + {edgeSideShift[i, #3, inArity], - 1 / 2}},
-                            {Point[pos], If[TrueQ @ OptionValue["ShowLabels"], Text[Style[in[[i]], Bold, Black], pos + {1, - 1} / 4], Nothing]}], {i, Range[inArity]}], Plus],
+                            {Point[pos], If[TrueQ @ OptionValue["ShowWireLabels"], Text[Style[in[[i]], Bold, Black, FontSize -> Small], pos + {1, - 1} / 8], Nothing]}], {i, Range[inArity]}], Plus],
                   outLabels = Inactivate[Table[With[{pos = #1 + {edgeSideShift[i, #3, outArity], 1 / 2}},
-                            {Point[pos], If[TrueQ @ OptionValue["ShowLabels"], Text[Style[out[[i]], Bold, Black], pos + {1, 1} / 4], Nothing]}], {i, Range[outArity]}], Plus]
+                            {Point[pos], If[TrueQ @ OptionValue["ShowWireLabels"], Text[Style[out[[i]], Bold, Black, FontSize -> Small], pos + {1, 1} / 8], Nothing]}], {i, Range[outArity]}], Plus]
             },
-                If[! MatchQ[tag, "cap" | "cup" | "initial" | "terminal" | "id" | "cast" | "permutation" | "copy"],
+                If[! MatchQ[tag, "cap" | "cup" | "initial" | "terminal" | "id" | "cast" | "permutation" | "copy" | "empty"],
                     shapeFun = {
                         fun[##],
                         Black, PointSize[Medium],
                         inLabels,
                         outLabels,
-                        Text[Style[label, FontSize -> 16], #1, Center]
+                        Text[Style[label, FontSize -> Medium], #1, Center]
                     } & // Activate
                 ]
             ];
@@ -257,7 +260,7 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
             VertexShapeFunction -> Catenate @ Map[AnnotationValue[#, VertexShapeFunction] &, graphs]
         ],
         OptionValue["ArrowPosition"],
-        OptionValue["ShowLabels"]
+        OptionValue["ShowArrowLabels"]
     ]
 ]
 
@@ -274,7 +277,7 @@ withProcGraphEdgeShapeFunction[g_Graph, arrowPosition_ : 0.5, showLabels_ : True
                 fromShiftIn = {edgeSideShift[i, vertexSize[v], procInArity[v]], - 1 / 2},
                 toShiftOut = {edgeSideShift[j, vertexSize[w], procOutArity[w]], 1 / 2},
                 dir = Small (1 - 2 Boole @ backwardTypeQ[If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]]]),
-                label = ""(*If[TrueQ[showLabels] && Not[MatchQ[procTag[v], "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]*)
+                label = If[TrueQ[showLabels] && Not[MatchQ[procTag[v], "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]
             },
                 With[{fun = Which[
                         v === w,
@@ -303,7 +306,7 @@ withProcGraphEdgeShapeFunction[g_Graph, arrowPosition_ : 0.5, showLabels_ : True
 
 
 simplifyProcGraph[g_Graph, OptionsPattern[ProcGraph]] := withProcGraphEdgeShapeFunction[
-    simplifyCaps @ simplifyCups @ (FixedPoint[simplifyPermutations, #] &) @ simplifyIdentities @ simplifyTerminals @ g, OptionValue["ArrowPosition"], OptionValue["ShowLabels"]
+    simplifyCaps @ simplifyCups @ (FixedPoint[simplifyPermutations, #] &) @ simplifyIdentities @ simplifyVoids @ g, OptionValue["ArrowPosition"], OptionValue["ShowArrowLabels"]
 ]
 
 
@@ -348,7 +351,7 @@ simplifyPermutations[g_Graph] := Module[{
 ]
 
 
-simplifyTerminals[g_Graph] := VertexDelete[g, Select[VertexList[g], MatchQ["initial" | "terminal"] @* procTag]]
+simplifyVoids[g_Graph] := VertexDelete[g, Select[VertexList[g], MatchQ["initial" | "terminal" | "empty"] @* procTag]]
 
 
 simplifyCups[g_Graph] := Module[{

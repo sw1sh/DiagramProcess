@@ -52,7 +52,7 @@ procShape[coord_, w_, h_, OptionsPattern[]] := {
     Translate[
         Switch[OptionValue["Shape"],
             "Diamond",
-            Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, h / 2}}],
+            Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, 3 h / 4}, {0, h / 4}}],
             "UpTriangle",
             Polygon[{{0, 0}, {w, 0}, {w / 2, h}, {0, h / 2}}],
             "DownTriangle",
@@ -79,8 +79,9 @@ ArrowUp[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Arrow[
         BezierCurve[{{a, b}, {a, (b + d) / 2}, {c, (b + d) / 2}, {c, d}}]
     ],
-    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} / 8]
+    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
+
 
 Options[ArrowLoop] = Options[ArrowUp]
 
@@ -94,8 +95,9 @@ ArrowLoop[from : {a_, b_}, to : {c_, d_}, shift_ : 1, label_, OptionsPattern[]] 
         (from + to) / 2 + {shift, 0},
        to + {shift, - 1}, to + {0, - 1}, to}
     ]],
-    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} / 8]
+    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
+
 
 Options[ArrowDownLoop] = Options[ArrowUp]
 
@@ -111,8 +113,9 @@ ArrowDownLoop[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
         {c, Min[b, d] - 1},
         to
     }]],
-    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} / 8]
+    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
+
 
 Options[ArrowUpLoop] = Options[ArrowUp]
 
@@ -129,7 +132,7 @@ ArrowUpLoop[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
         {c, Max[b, d] + 1},
         to
     }]],
-    Text[Style[label, Bold, Black], from + {2 Boole[a >= c] - 1, 1} / 8]
+    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
 
 
