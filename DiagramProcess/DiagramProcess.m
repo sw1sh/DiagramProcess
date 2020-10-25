@@ -7,9 +7,12 @@ PackageExport["ProcessTrace"]
 
 Options[DiagramProcess] = Join[{"Simplify" -> False}, Options[ProcGraph]]
 
+
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
+
 DiagramProcess[p_Proc, ___]["Process"] := p
+
 
 DiagramProcess[p_Proc, opts : OptionsPattern[]]["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
     g = ProcGraph[p, gopts]
@@ -26,6 +29,8 @@ DiagramProcess[DiagramProcess[p_, ___], args___] := DiagramProcess[p, args]
 
 DiagramProcess[boxNames_List, opts : OptionsPattern[]] := DiagramProcess[boxNamesProc[boxNames], opts]
 
+
+DiagramProcess["Zero", opts : OptionsPattern[]] := DiagramProcess[zeroProc[], opts]
 
 DiagramProcess["Empty", opts : OptionsPattern[]] := DiagramProcess[emptyProc[], opts]
 
@@ -47,6 +52,10 @@ DiagramProcess["Swap", a_, b_, opts : OptionsPattern[]] :=
 DiagramProcess["Copy", a_, opts : OptionsPattern[]] :=
     DiagramProcess[copyProc[a], opts]
 
+DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]
+
+DiagramProcess[HoldPattern[Sum[f : Except[_Proc], i_]], opts : OptionsPattern[]] := DiagramProcess[Sum[Proc[f], i], opts]
+
 
 DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List | _String], opts : OptionsPattern[]] :=
     DiagramProcess[Proc[expr], opts]
@@ -61,6 +70,14 @@ DiagramProcess /: CircleTimes[p_DiagramProcess, q_DiagramProcess] := DiagramProc
 
 
 DiagramProcess /: Transpose[p : _DiagramProcess] := DiagramProcess[transposeProc @ p["Process"], Sequence @@ Options[p]]
+
+DiagramProcess /: SuperDagger[p : _DiagramProcess] := DiagramProcess[adjointProc @ p["Process"], Sequence @@ Options[p]]
+
+DiagramProcess /: OverBar[p : _DiagramProcess] := DiagramProcess[conjugateProc @ p["Process"], Sequence @@ Options[p]]
+
+DiagramProcess /: Plus[ps__DiagramProcess] := DiagramProcess[Plus @@ Map[#["Process"] &, {ps}], Sequence @@ Options[First @ {ps}]]
+
+DiagramProcess /: Sum[p_DiagramProcess, i_] := DiagramProcess[Sum[p["Process"], i], Sequence @@ Options[p]]
 
 
 ProcessTrace[p : _DiagramProcess, n_Integer : 1, m_Integer : 1] := DiagramProcess[traceProc[p["Process"], n, m], Sequence @@ Options[p]]
@@ -78,7 +95,7 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]],
     above, below
 },
     above = {
-        {BoxForm`SummaryItem[{"Process: ", TraditionalForm[procLabel[p]]}], SpanFromLeft},
+        {BoxForm`SummaryItem[{"Process: ", TraditionalForm[procLabel[p] /. "Transpose"[l_] :> Transpose[l]]}], SpanFromLeft},
         {BoxForm`SummaryItem[{"Input: ", p[[2]]}], BoxForm`SummaryItem[{"Output: ", p[[3]]}]
         }
     };
@@ -86,11 +103,10 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]],
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         d,
-        GraphPlot[d[
+        d[
             "Diagram",
             Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
-            ], ImageSize -> Tiny
-        ] /. (FontSize -> _) -> (FontSize -> Tiny),
+        ] /. (FontSize -> _) -> (FontSize -> Small),
         above,
         below,
         form,

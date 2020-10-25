@@ -10,7 +10,8 @@ GraphProc::unknownMethod = "Method should be one of \"TopDown\" or \"BottomUp\""
 
 GraphProcOptionsCheck[opts : OptionsPattern[GraphProc]] := If[! MatchQ[OptionValue[GraphProc, {opts}, Method], "TopDown" | "BottomUp"], Message[GraphProc::unknownMethod]; False, True]
 
-GraphProc[g_Graph, opts : OptionsPattern[]] /; GraphProcOptionsCheck[opts] := withUniqueTypes[graphProc[#, TrueQ[OptionValue[Method] == "TopDown"]] &, cupifyProcGraph @ g]
+GraphProc[g_Graph, opts : OptionsPattern[]] /; GraphProcOptionsCheck[opts] :=
+    stripTypeSubsripts @ withUniqueTypes[graphProc[#, TrueQ[OptionValue[Method] == "TopDown"]] &, cupifyProcGraph @ g]
 
 
 graphProc[g_Graph, topDown_ : False] := Module[{
@@ -66,9 +67,7 @@ withUniqueTypes[f_, graph_Graph] := Module[{
 ]
 
 
-stripTypeSubsripts[SystemType[t_, args___]] := SystemType[Replace[t, Subscript[x_, _] :> x], args]
-
-stripTypeSubsripts[p_Proc] := MapAt[Map[stripTypeSubsripts], p, {{2}, {3}}]
+stripTypeSubsripts[expr : _SystemType | _Proc] := expr /. SystemType[Subscript[t_, _], args___] :> SystemType[t, args]
 
 
 removeCycles[g_Graph] := Module[{

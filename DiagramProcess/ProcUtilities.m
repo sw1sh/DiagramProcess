@@ -1,9 +1,17 @@
 Package["DiagramProcess`"]
 
 PackageExport["transposeProc"]
+PackageExport["algebraicTransposeProc"]
+PackageExport["adjointProc"]
+PackageExport["conjugateProc"]
+PackageExport["stripProcSupers"]
 PackageExport["flattenProc"]
 PackageExport["traceProc"]
+PackageExport["procToState"]
+PackageExport["procToEffect"]
+PackageExport["compositeProc"]
 
+PackageScope["compatibleProcsQ"]
 PackageScope["composeProcs"]
 PackageScope["procInArity"]
 PackageScope["procOutArity"]
@@ -22,10 +30,38 @@ transposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse
 transposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[transposeProc /@ {ps}]
 
 transposeProc[p : Proc[f_, in_, out_, ___]] :=
-    Proc[Labeled[f, Transpose[procLabel[p]]], Map[reverseType, Reverse @ out], Map[reverseType, Reverse @ in],
-        With[{label = procLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]],
+    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, "Transpose"[_]], First @ label, "Transpose"[label]]]], Map[dualType, Reverse @ out], Map[dualType, Reverse @ in],
         procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
     ]
+
+
+algebraicTransposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[algebraicTransposeProc /@ {ps}]
+
+algebraicTransposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[algebraicTransposeProc /@ {ps}]
+
+algebraicTransposeProc[p : Proc[f_, in_, out_, ___]] :=
+    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]]], Map[dualType, out], Map[dualType, in],
+        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
+    ]
+
+
+adjointProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[adjointProc /@ {ps}]
+
+adjointProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[adjointProc /@ {ps}]
+
+adjointProc[p : Proc[f_, in_, out_, ___]] :=
+    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, _SuperDagger], First @ label, SuperDagger[label]]]], Map[dualType, out], Map[dualType, in],
+        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
+    ]
+
+
+conjugateProc[p_Proc] := transposeProc[adjointProc[p]] /. "Transpose"[SuperDagger[l_]] :> OverBar[l]
+
+
+compositeProc[p_Proc] := Proc[Labeled[procFunc[p], "Composite"[procLabel[p]]], procInput[p], procOutput[p], procTag[p]]
+
+
+stripProcSupers[expr_] := expr //. "Transpose"[l_] | Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l
 
 
 flattenProc[p_Proc] := p //. Map[
@@ -33,7 +69,7 @@ flattenProc[p_Proc] := p //. Map[
         q : Proc[Defer[head[left___, Proc[Defer[head[inside___]], __],right___]], __] :>
         MapAt[Defer[head[left, inside, right]] &, q, 1]
     ],
-    {Composition, CircleTimes}
+    {Composition, CircleTimes, Plus}
 ]
 
 
@@ -67,7 +103,7 @@ traceProc[p_Proc, ii_Integer : 1, jj_Integer : 1] := Module[{
 },
     in = p[[2, i]];
     out = p[[3, j]];
-    q = If[in === out, identityProc[OverBar[in]], castProc[OverBar[in], OverBar[out]]];
+    q = If[in === out, identityProc[dualType[in]], castProc[dualType[in], dualType[out]]];
     Composition @@ {
         CircleTimes @@ Prepend[identityProc /@ Drop[p[[3]], {j}], capProc[out]],
         CircleTimes[q, Composition @@ {
@@ -85,6 +121,16 @@ traceProc[p_Proc, ii_Integer : 1, jj_Integer : 1] := Module[{
     }
 ]
 
+
+procToState[p_Proc] := With[{cups = cupProc /@ p[[2]]}, Fold[
+    CircleTimes[identityProc[dualType[#1[[2, 1]]]], #1] @* CircleTimes[#2, Sequence @@ Map[identityProc, #1[[2, 2 ;;]]]] &, p, cups]]
+
+
+procToEffect[p_Proc] := With[{caps = capProc /@ p[[3]]}, Fold[
+    CircleTimes[#2, Sequence @@ Map[identityProc, #1[[3, 2 ;;]]]] @* CircleTimes[identityProc[dualType[#1[[3, 1]]]], #1] &, p, caps]]
+
+
+compatibleProcsQ[ps__Proc] := Equal @@ Map[#[[2]] &, {ps}] && Equal @@ Map[#[[3]] &, {ps}]
 
 
 unProc[p_Proc] := unLabel[p //. Proc[op_, __] :> op /. Defer -> Identity]

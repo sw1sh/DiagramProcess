@@ -54,13 +54,15 @@ procShape[coord_, w_, h_, OptionsPattern[]] := {
             "Diamond",
             Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, 3 h / 4}, {0, h / 4}}],
             "UpTriangle",
-            Polygon[{{0, 0}, {w, 0}, {w / 2, h}, {0, h / 2}}],
+            Polygon[{{w / 4, 0}, {w, 0}, {w / 2, h}, {w / 4, h / 2}}],
             "DownTriangle",
-            Polygon[{{0, h}, {w, h}, {w / 2, 0}, {0, h / 2}}],
-            "TransposedUpTriangle",
+            Polygon[{{w / 4, h}, {w, h}, {w / 2, 0}, {w / 4, h / 2}}],
+            "Rectangle",
+            Rectangle[{0, 0}, {w, h}],
+            (*"TransposedUpTriangle",
             Polygon[{{0, h}, {w, h}, {w, h / 2}, {w / 2, 0}}],
             "TransposedDownTriangle",
-            Polygon[{{0, 0}, {w, 0}, {w, h / 2}, {w / 2, h}}],
+            Polygon[{{0, 0}, {w, 0}, {w, h / 2}, {w / 2, h}}],*)
             _,
             Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}]
         ],
@@ -136,7 +138,7 @@ ArrowUpLoop[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
 }
 
 
-edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2)
+edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2) / 2
 
 
 betweenEdges[p : Proc[f_, pIn_, pOut_, ___], q : Proc[g_, qIn_, qOut_, ___]] := With[{
