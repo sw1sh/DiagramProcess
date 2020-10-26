@@ -7,6 +7,7 @@ PackageExport["simplifyProcGraph"]
 Options[ProcGraph] = {
     "ComposeDistance" -> Automatic,
     "ParallelComposeDistance" -> Automatic,
+    "ProductWidth" -> Automatic,
     "AddTerminals" -> False,
     "OutlineProcess" -> False,
     "ShowArrowLabels" -> False,
@@ -30,7 +31,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
         vertexSize = vertexSize {1, 0}
     ];
     If[ MatchQ[procLabel[p], "Composite"[_]],
-        graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False];
+        graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False, opts];
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph]
     ];
@@ -41,6 +42,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 inArity = Length[in], outArity = Length[out],
                 label = procLabel[p],
                 tag = procTag[p],
+                productWidth = OptionValue["ProductWidth"] /. Automatic -> 1 / 5,
                 arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
                 shape = With[{q = Which[
                     MatchQ[procLabel[p], "Transpose"[_]],
@@ -82,16 +84,17 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
             ];
 
             shapeFun = If[MatchQ[label, "Composite"[_]],
-                With[{graphics = First[GraphPlot[graph]], center = graphCenter[graph]},
-                    GeometricTransformation[graphics, TranslationTransform[#1 - center]] &
+                With[{graphics = First[GraphPlot[graph]]},
+                    GeometricTransformation[graphics, TranslationTransform[#1 - vertexCoords]] &
                 ],
                 Which[
                 MatchQ[tag, "id" | "cast"],
-                Function @ With[{dir = 1 - 2 Boole @ dualTypeQ[#2[[2, 1]]]},
-                    {
+                With[{dir = 1 - 2 Boole @ dualTypeQ[p[[2, 1]]], multiply = typeArity[p[[2, 1]]]},
+                    Function @ {
                         Black,
-                        ArrowUp[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
-                                "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos]
+                        Wire[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
+                             "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos,
+                             "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
                     }
                 ],
 
@@ -108,8 +111,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         },
                         {
                             Black,
-                            ArrowUp[coord + fromShift, coord + toShift, "",
-                                    "ArrowSize" -> 0]
+                            Wire[coord + fromShift, coord + toShift, "", "ArrowSize" -> 0]
                         }
                         ]
                         ], xs]
@@ -123,12 +125,14 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         MapThread[Function[{fromIndex, toIndex}, With[{
                             fromShift = {edgeSideShift[fromIndex, size, inArity], - size[[2]] / 2},
                             toShift = {edgeSideShift[toIndex, size, outArity], size[[2]] / 2},
-                            dir = 1 - 2 Boole @ dualTypeQ[v[[2, fromIndex]]]
+                            dir = 1 - 2 Boole @ dualTypeQ[v[[2, fromIndex]]],
+                            multiply = typeArity[p[[2, fromIndex]]]
                         },
                         {
                             Black,
-                            ArrowUp[coord + fromShift, coord + toShift, "",
-                                    "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos / 2]
+                            Wire[coord + fromShift, coord + toShift, "",
+                                 "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos / 2,
+                                 "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
                         }
                         ]
                         ], {p @@ xs, xs}]
@@ -136,33 +140,38 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ],
 
                 MatchQ[tag, "cup" | "cap"],
-                Function[{coord, v, size}, If[Length[in] == 0, {
-                    (*Arrowheads[{{Medium (2 Boole[dualTypeQ @ out[[1]]] - 1), arrowPos}}],*)
+                With[{multiply = typeArity[If[MatchQ[tag, "cup"], out[[1]], in[[1]]]]},
+                Function[{coord, v, size}, If[MatchQ[tag, "cup"], {
                     Black,
-                    BezierCurve @ {
-                        coord + {edgeSideShift[1, size, 2], size[[2]] / 2},
-                        coord + {edgeSideShift[1, size, 2], 0},
-                        coord + {edgeSideShift[2, size, 2], 0},
-                        coord + {edgeSideShift[2, size, 2], size[[2]] / 2}
-                        }
+                    Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
+                         "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
+                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
                 }, {
-                    (*Arrowheads[{{Medium (1 - 2 Boole[dualTypeQ @ in[[1]]]), arrowPos}}],*)
                     Black,
-                    BezierCurve @ {
-                        coord + {edgeSideShift[1, size, 2], - size[[2]] / 2},
-                        coord + {edgeSideShift[1, size, 2], 0},
-                        coord + {edgeSideShift[2, size, 2], 0}, 
-                        coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}
-                    }
-                }]],
+                    Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
+                         "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "UpArc",
+                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                }]]
+                ],
 
-                MatchQ[tag, "copy"],
+                MatchQ[tag, "copy" | "uncurry"],
                 Function[{coord, v, size}, {
                     Black,
                     Table[
-                        ArrowUp[coord + {0, - size[[2]] / 2}, coord + {edgeSideShift[i, size, outArity], size[[2]] / 2}, "",
-                                "ArrowPosition" -> arrowPos],
-                        {i, Length @ out}
+                        Wire[coord + {edgeSideShift[i, {1, 1}, 2] productWidth, - size[[2]] / 2}, coord + {edgeSideShift[i, size, 2], size[[2]] / 2}, "",
+                             "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
+                        {i, 2}
+                    ]
+                }]
+                ,
+
+                MatchQ[tag, "curry"],
+                Function[{coord, v, size}, {
+                    Black,
+                    Table[
+                        Wire[coord + {edgeSideShift[i, size, 2], - size[[2]] / 2}, coord + {edgeSideShift[i, {1, 1}, 2] productWidth, size[[2]] / 2}, "",
+                             "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
+                        {i, 2}
                     ]
                 }],
 
@@ -177,7 +186,8 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     }]
                 ]
             ];
-            With[{fun = shapeFun,
+            With[{
+                fun = shapeFun,
                 inLabels = Inactivate[Table[
                     With[{pos = #1 + {edgeSideShift[i, #3, inArity], - #3[[2]] / 2}},
                         {
@@ -206,14 +216,13 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ],
                 processLabel = If[TrueQ[OptionValue["ShowProcessLabels"]] && ! MatchQ[label, "Composite"[_]], stripProcSupers @ label, ""]
             },
-                If[! topologicalProcQ[p],
-                    shapeFun = {
-                        fun[##],
-                        Black, PointSize[Medium],
-                        inLabels,
-                        outLabels,
-                        Text[Style[processLabel, FontSize -> Medium], #1, Center]
-                    } & // Activate
+                With[{shapeFunBody = {
+                        Inactive[fun][##],
+                        If[! topologicalProcQ[p], {Black, PointSize[Medium], inLabels, outLabels} , Nothing],
+                        If[! unlabeledProcQ[p], {Black, Text[Style[processLabel, FontSize -> Medium], #1, Center]}, Nothing]
+                    }
+                },
+                    shapeFun = Function[shapeFunBody] // Activate
                 ]
             ];
 
@@ -307,11 +316,12 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
     size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
     graphs = Map[ProcGraph[#, "AddTerminals" -> False, "Size" -> {size[[1]], Automatic}, opts] &, {ps}];
     {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
-    If[size[[1]] === Automatic,
+    If[ size[[1]] === Automatic,
         graphs = Map[ProcGraph[#, "AddTerminals" -> False, "ParallelComposeDistance" -> Automatic,
         "Size" -> {Max[graphWidths], size[[2]]}, opts] &, {ps}];
         {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
     ];
+    graphs = MapThread[shiftVertices[#1, #2] &, {graphs, Minus @* graphCenter /@ graphs}];
     composeDistance = If[size[[2]] === Automatic,
         Replace[OptionValue["ComposeDistance"], Automatic -> 1],
         Max[(size[[2]] - Total[graphHeights]) / (Length[{ps}] - 1), 0]
@@ -319,7 +329,7 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
     vertices = VertexList /@ graphs;
     edges = Catenate[EdgeList /@ graphs];
     vertexSize = AnnotationValue[#, VertexSize] & /@ graphs;
-    vertexCoordinates = AnnotationValue[#, VertexCoordinates] & /@ graphs;
+    vertexCoordinates = GraphEmbedding /@ graphs;
     vertexXShifts = Map[- Mean[#] &, vertexCoordinates[[All, All, 1]]];
     vertexYShifts = FoldList[
         #1 - #2 - composeDistance &,
@@ -339,13 +349,14 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
             VertexSize -> Normal @ newVertexSize,
             VertexShapeFunction -> Catenate @ Map[AnnotationValue[#, VertexShapeFunction] &, graphs]
         ],
+        OptionValue["ProductWidth"],
         OptionValue["ArrowPosition"],
         OptionValue["ShowArrowLabels"]
     ]
 ]
 
 
-withProcGraphEdgeShapeFunction[g_Graph, arrowPosition_ : 0.5, showLabels_ : True] := With[{
+withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0.5, showLabels_ : True] := With[{
     vertexCoordinate = graphVertexCoordinates[g],
     vertexSize = Association @ AnnotationValue[g, VertexSize]
 },
@@ -356,26 +367,31 @@ withProcGraphEdgeShapeFunction[g_Graph, arrowPosition_ : 0.5, showLabels_ : True
                 toShift = edgeSideShift[j, vertexSize[w], procInArity[w]],
                 fromShiftIn = edgeSideShift[i, vertexSize[v], procInArity[v]],
                 toShiftOut = edgeSideShift[j, vertexSize[w], procOutArity[w]],
+                multiplicity = typeArity[v[[3, i]]],
+                multiplyWidthIn = Replace[productWidth, Automatic -> 1 / 5],
+                multiplyWidthOut = Replace[productWidth, Automatic -> 1 / 5],
                 vsize = vertexSize[v], wsize = vertexSize[w],
                 dir = Small (1 - 2 Boole @ dualTypeQ[If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]]]),
                 label = If[TrueQ[showLabels] && Not[MatchQ[procTag[v], "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]
             },
                 With[{fun = Which[
-                        v === w,
-                        ArrowLoop[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2},
-                            (fromShift + toShift) / 2 - vertexCoordinate[v][[1]],
-                            label,
-                            "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition
-                        ] &,
-                        e[[3, 0]] === DownArrow,
-                        ArrowDownLoop[#1[[1]] + {fromShiftIn, - vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2}, label,
-                            "ArrowSize" -> Small (2 Boole @ dualTypeQ[v[[2, i]]] - 1), "ArrowPosition" -> arrowPosition] &,
-                        e[[3, 0]] === UpArrow,
-                        ArrowUpLoop[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShiftOut, wsize[[2]] / 2}, label,
-                            "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition] &,
-                        True,
-                        ArrowUp[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2} , label,
-                            "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition] &
+                    v === w,
+                    Wire[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2},
+                        label,
+                        "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,
+                        "HorizontalShift" -> (fromShift + toShift) / 2 - vertexCoordinate[v][[1]],
+                        "Direction" -> "Loop"
+                    ] &,
+                    e[[3, 0]] === DownArrow,
+                    Wire[#1[[1]] + {fromShiftIn, - vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2}, label,
+                        "ArrowSize" -> Small (2 Boole @ dualTypeQ[v[[2, i]]] - 1), "ArrowPosition" -> arrowPosition, "Direction" -> "DownArc"] &,
+                    e[[3, 0]] === UpArrow,
+                    Wire[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShiftOut, wsize[[2]] / 2}, label,
+                        "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition, "Direction" -> "UpArc"] &,
+                    True,
+                    Wire[#1[[1]] + {fromShift, vsize[[2]] / 2}, #1[[-1]] + {toShift, - wsize[[2]] / 2} , label,
+                        "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,
+                        "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut] &
                 ]},
                     e -> Function[{Black, fun[##]}]
                 ]
@@ -387,7 +403,10 @@ withProcGraphEdgeShapeFunction[g_Graph, arrowPosition_ : 0.5, showLabels_ : True
 
 
 simplifyProcGraph[g_Graph, OptionsPattern[ProcGraph]] := withProcGraphEdgeShapeFunction[
-    simplifyCaps @ simplifyCups @ (FixedPoint[simplifyPermutations, #] &) @ simplifyIdentities @ simplifyVoids @ g, OptionValue["ArrowPosition"], OptionValue["ShowArrowLabels"]
+    simplifyCaps @ simplifyCups @ (FixedPoint[simplifyPermutations, #] &) @ simplifyIdentities @ simplifyVoids @ g,
+    OptionValue["ProductWidth"],
+    OptionValue["ArrowPosition"],
+    OptionValue["ShowArrowLabels"]
 ]
 
 

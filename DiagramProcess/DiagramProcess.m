@@ -52,6 +52,12 @@ DiagramProcess["Swap", a_, b_, opts : OptionsPattern[]] :=
 DiagramProcess["Copy", a_, opts : OptionsPattern[]] :=
     DiagramProcess[copyProc[a], opts]
 
+DiagramProcess["Uncurry", as_List, opts : OptionsPattern[]] :=
+    DiagramProcess[uncurryProc[as], opts]
+
+DiagramProcess["Curry", as_List, opts : OptionsPattern[]] :=
+    DiagramProcess[curryProc[as], opts]
+
 DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]
 
 DiagramProcess[HoldPattern[Sum[f : Except[_Proc], i_]], opts : OptionsPattern[]] := DiagramProcess[Sum[Proc[f], i], opts]
@@ -103,10 +109,10 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]],
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         d,
-        d[
+        Magnify[GraphPlot @ d[
             "Diagram",
             Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
-        ] /. (FontSize -> _) -> (FontSize -> Small),
+        ], 0.5],
         above,
         below,
         form,

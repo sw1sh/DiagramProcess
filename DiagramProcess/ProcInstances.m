@@ -1,6 +1,7 @@
 Package["DiagramProcess`"]
 
 PackageScope["topologicalProcQ"]
+PackageScope["unlabeledProcQ"]
 PackageScope["zeroProc"]
 PackageScope["emptyProc"]
 PackageScope["identityProc"]
@@ -11,11 +12,16 @@ PackageScope["cupProc"]
 PackageScope["capProc"]
 PackageScope["copyProc"]
 PackageScope["sumProc"]
+PackageScope["uncurryProc"]
+PackageScope["curryProc"]
 PackageScope["withTerminals"]
 
 
 
 topologicalProcQ[p_Proc] := MatchQ[procTag[p], "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal"]
+
+
+unlabeledProcQ[p_Proc] := MatchQ[procTag[p], "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal" | "curry" | "uncurry"]
 
 
 emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, "empty"]
@@ -52,6 +58,11 @@ copyProc[in_, n_ : 2] := Proc[Labeled[{#, #} &, Labeled[Unique["copy"], "\[Gamma
 
 
 sumProc[i_] := Proc[Labeled["Sum", Labeled[Unique["sum"], Subscript["\[CapitalSigma]", i]]], {}, {}, "sum"]
+
+
+uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, Heads -> True] &, Labeled[Unique["uncurry"], "uncurry"]], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts, "uncurry"]
+
+curryProc[ts_List] := Proc[Labeled[Apply[CircleTimes], Labeled[Unique["curry"], "curry"]], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, "curry"]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{

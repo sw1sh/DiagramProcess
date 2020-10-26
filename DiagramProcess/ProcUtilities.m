@@ -10,6 +10,7 @@ PackageExport["traceProc"]
 PackageExport["procToState"]
 PackageExport["procToEffect"]
 PackageExport["compositeProc"]
+PackageExport["doubleProc"]
 
 PackageScope["compatibleProcsQ"]
 PackageScope["composeProcs"]
@@ -59,6 +60,9 @@ conjugateProc[p_Proc] := transposeProc[adjointProc[p]] /. "Transpose"[SuperDagge
 
 
 compositeProc[p_Proc] := Proc[Labeled[procFunc[p], "Composite"[procLabel[p]]], procInput[p], procOutput[p], procTag[p]]
+
+
+doubleProc[p_Proc] := With[{q = CircleTimes[conjugateProc[p], p]}, compositeProc[curryProc[procOutput[q]] @* q @* uncurryProc[procInput[q]]]]
 
 
 stripProcSupers[expr_] := expr //. "Transpose"[l_] | Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l

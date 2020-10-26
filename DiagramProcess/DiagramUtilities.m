@@ -3,10 +3,7 @@ Package["DiagramProcess`"]
 PackageExport["graphProc"]
 PackageExport["boxNamesProc"]
 
-PackageScope["ArrowUp"]
-PackageScope["ArrowLoop"]
-PackageScope["ArrowDownLoop"]
-PackageScope["ArrowUpLoop"]
+PackageScope["Wire"]
 PackageScope["procShape"]
 PackageScope["edgeSideShift"]
 PackageScope["rescaleProc"]
@@ -71,74 +68,59 @@ procShape[coord_, w_, h_, OptionsPattern[]] := {
 }
 
 
-Options[ArrowUp] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic}
+Options[Wire] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic,
+    "Direction" -> "BottomUp",
+    "VerticalShift" -> 1, "HorizontalShift" -> 1,
+    "Multiply" -> 1, "MultiplyWidthIn" -> 0.01, "MultiplyWidthOut" -> 0.01}
 
-ArrowUp[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
+Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Arrowheads[{{
         OptionValue["ArrowSize"],
         OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
     ],
-    Arrow[
-        BezierCurve[{{a, b}, {a, (b + d) / 2}, {c, (b + d) / 2}, {c, d}}]
+    Table[
+        With[{shiftIn = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthIn"],
+              shiftOut = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"]},
+        Switch[
+            OptionValue["Direction"],
+            "BottomUp",
+            Arrow[
+                BezierCurve[{
+                    {a + shiftIn, b}, {a + shiftIn , (b + d) / 2},
+                    {c + shiftIn, (b + d) / 2 }, {c + shiftOut, d}
+                }]
+            ],
+            "Loop",
+            Arrow[BSplineCurve[{
+                from + {shiftIn, 0}, from + {shiftIn, 1}, from + {shiftIn + OptionValue["HorizontalShift"], OptionValue["VerticalShift"]},
+                (from + to) / 2 + {(shiftIn + shiftOut) / 2 + OptionValue["HorizontalShift"], 0},
+                to + {shiftOut + OptionValue["HorizontalShift"], - 1}, to + {shiftOut, - OptionValue["VerticalShift"]}, to + {shiftOut, 0}}
+            ]],
+            "DownArc",
+            Arrow[BSplineCurve[{
+                from + {shiftIn, 0},
+                {a + shiftIn, Min[b, d] - OptionValue["VerticalShift"]},
+                {(a + c) / 2, Min[b, d] - OptionValue["VerticalShift"] + (shiftIn + shiftOut) / 2},
+                {c - shiftOut, Min[b, d] - OptionValue["VerticalShift"]},
+                to - {shiftOut, 0}
+            }]],
+            "UpArc",
+            Arrow[BSplineCurve[{
+                from + {shiftIn, 0},
+                {a + shiftIn, Max[b, d] + OptionValue["VerticalShift"]},
+                {(a + c) / 2, Max[b, d] + OptionValue["VerticalShift"] - (shiftIn + shiftOut) / 2},
+                {c - shiftOut, Max[b, d] + OptionValue["VerticalShift"]},
+                to - {shiftOut, 0}
+            }]]
+        ]
+        ],
+        {i, OptionValue["Multiply"]}
     ],
     Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
 }
 
 
-Options[ArrowLoop] = Options[ArrowUp]
-
-ArrowLoop[from : {a_, b_}, to : {c_, d_}, shift_ : 1, label_, OptionsPattern[]] := {
-    Arrowheads[{{
-        OptionValue["ArrowSize"],
-        OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
-    ],
-    Arrow[BSplineCurve[{
-        from, from + {0, 1}, from + {shift, 1},
-        (from + to) / 2 + {shift, 0},
-       to + {shift, - 1}, to + {0, - 1}, to}
-    ]],
-    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
-}
-
-
-Options[ArrowDownLoop] = Options[ArrowUp]
-
-ArrowDownLoop[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
-    Arrowheads[{{
-        OptionValue["ArrowSize"],
-        OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
-    ],
-    Arrow[BSplineCurve[{
-        from,
-        {a, Min[b, d] - 1},
-        {(a + c) / 2, Min[b, d] - 1},
-        {c, Min[b, d] - 1},
-        to
-    }]],
-    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
-}
-
-
-Options[ArrowUpLoop] = Options[ArrowUp]
-
-ArrowUpLoop[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
-    Arrowheads[{{
-        OptionValue["ArrowSize"],
-        OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
-    ],
-
-    Arrow[BSplineCurve[{
-        from,
-        {a, Max[b, d] + 1},
-        {(a + c) / 2, Max[b, d] + 1},
-        {c, Max[b, d] + 1},
-        to
-    }]],
-    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
-}
-
-
-edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2) / 2
+edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2)
 
 
 betweenEdges[p : Proc[f_, pIn_, pOut_, ___], q : Proc[g_, qIn_, qOut_, ___]] := With[{

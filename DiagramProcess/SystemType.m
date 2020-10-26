@@ -4,6 +4,7 @@ PackageExport["SystemType"]
 
 PackageScope["dualTypeQ"]
 PackageScope["dualType"]
+PackageScope["typeArity"]
 
 
 SystemType::usage = "A representation of types for process inputs and outputs"
@@ -28,10 +29,16 @@ SystemType[SystemType[t_, ___], args__] := SystemType[t, args]
 dualTypeQ[SystemType[_, opts : OptionsPattern[]]] :=
     TrueQ[OptionValue[SystemType, opts, "Dual"]]
 
+
 dualType[SystemType[t_, opts : OptionsPattern[SystemType]]] :=
     SystemType[t,
       "Dual" -> Not[OptionValue[SystemType, opts, "Dual"]],
       Sequence @@ FilterRules[opts, Except["Dual"]]]
+
+
+typeArity[_SystemType] := 1
+
+typeArity[SystemType[Defer[CircleTimes[ts__]], ___]] := Total[typeArity /@ {ts}]
 
 
 (* Boxes *)
