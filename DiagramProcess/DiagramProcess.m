@@ -67,12 +67,12 @@ DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List | _String], opts : 
     DiagramProcess[Proc[expr], opts]
 
 
-DiagramProcess /: p_DiagramProcess @* q_DiagramProcess := DiagramProcess[p["Process"] @* q["Process"],
-    Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
+DiagramProcess /: Composition[ps__DiagramProcess] := DiagramProcess[Composition @@ Map[#["Process"] &, {ps}],
+    Sequence @@ Normal @ Merge[Options /@ {ps}, First]]
 
 
-DiagramProcess /: CircleTimes[p_DiagramProcess, q_DiagramProcess] := DiagramProcess[CircleTimes[p["Process"], q["Process"]],
-    Sequence @@ Normal @ Merge[{Options[p], Options[q]}, First]]
+DiagramProcess /: CircleTimes[ps__DiagramProcess] := DiagramProcess[CircleTimes @@ Map[#["Process"] &, {ps}],
+    Sequence @@ Normal @ Merge[Options /@ {ps}, First]]
 
 
 DiagramProcess /: Transpose[p : _DiagramProcess] := DiagramProcess[transposeProc @ p["Process"], Sequence @@ Options[p]]

@@ -26,11 +26,11 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
         MapAt[Replace[Automatic -> Max[procArity[p], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
         2
     ];
-    If[ MatchQ[procTag[p], "initial" | "terminal"],
-        vertexCoords = vertexCoords + If[procTag[p] == "initial", {0, vertexSize[[2]] / 2}, {0, - vertexSize[[2]] / 2}];
+    If[ procTagQ[p, "initial" | "terminal"],
+        vertexCoords = vertexCoords + If[procTagQ[p, "initial"], {0, vertexSize[[2]] / 2}, {0, - vertexSize[[2]] / 2}];
         vertexSize = vertexSize {1, 0}
     ];
-    If[ MatchQ[procLabel[p], "Composite"[_]],
+    If[ procTagQ[p, "composite"],
         graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False, opts];
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph]
@@ -41,21 +41,20 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
         VertexShapeFunction -> With[{
                 inArity = Length[in], outArity = Length[out],
                 label = procLabel[p],
-                tag = procTag[p],
                 productWidth = OptionValue["ProductWidth"] /. Automatic -> 1 / 5,
                 arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
                 shape = With[{q = Which[
-                    MatchQ[procLabel[p], "Transpose"[_]],
-                    transposeProc[p],
-                    MatchQ[procLabel[p], _SuperDagger],
-                    adjointProc[p],
-                    MatchQ[procLabel[p], _OverBar],
+                    procTagQ[p, {"transpose", "adjoint"}],
                     conjugateProc[p],
+                    procTagQ[p, "transpose"],
+                    transposeProc[p],
+                    procTagQ[p, "adjoint"],
+                    adjointProc[p],
                     True,
                     p
                 ]},
                     Which[
-                        MatchQ[procLabel[p], "Composite"[_]],
+                        procTagQ[p, "composite"],
                         "Rectangle",
                         procArity[q] == 0,
                         "Diamond",
@@ -72,23 +71,23 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
 
             With[{fun = outlineShapeFun},
                 outlineShapeFun = Which[
-                    MatchQ[label, "Transpose"[_]],
-                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
-                    MatchQ[label, _SuperDagger],
-                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
-                    MatchQ[label, _OverBar],
+                    procTagQ[p, {"transpose", "adjoint"}],
                     GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
+                    procTagQ[p, "transpose"],
+                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
+                    procTagQ[p, "adjoint"],
+                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
                     True,
                     fun
                 ]
             ];
 
-            shapeFun = If[MatchQ[label, "Composite"[_]],
+            shapeFun = If[procTagQ[p, "composite"],
                 With[{graphics = First[GraphPlot[graph]]},
                     GeometricTransformation[graphics, TranslationTransform[#1 - vertexCoords]] &
                 ],
                 Which[
-                MatchQ[tag, "id" | "cast"],
+                procTagQ[p, "id" | "cast"],
                 With[{dir = 1 - 2 Boole @ dualTypeQ[p[[2, 1]]], multiply = typeArity[p[[2, 1]]]},
                     Function @ {
                         Black,
@@ -98,10 +97,10 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     }
                 ],
 
-                MatchQ[tag, "empty" | "sum"],
+                procTagQ[p, "empty" | "sum"],
                 {} &,
 
-                MatchQ[tag, "initial" | "terminal"],
+                procTagQ[p, "initial" | "terminal"],
                 With[{xs = Range @ Length @ in},
 
                     Function[{coord, v, size},
@@ -118,7 +117,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     ]
                 ],
 
-                MatchQ[tag, "permutation"],
+                procTagQ[p, "permutation"],
                 With[{xs = Range @ Length @ in},
 
                     Function[{coord, v, size},
@@ -139,22 +138,23 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     ]
                 ],
 
-                MatchQ[tag, "cup" | "cap"],
-                With[{multiply = typeArity[If[MatchQ[tag, "cup"], out[[1]], in[[1]]]]},
-                Function[{coord, v, size}, If[MatchQ[tag, "cup"], {
-                    Black,
-                    Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
-                         "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
-                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
-                }, {
+                procTagQ[p, "cup"],
+                With[{multiply = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]]},
+                Function[{coord, v, size}, If[procRotatedQ[p], {
                     Black,
                     Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "UpArc",
                          "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
-                }]]
+                }, {
+                    Black,
+                    Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
+                         "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
+                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                }
+                ]]
                 ],
 
-                MatchQ[tag, "copy" | "uncurry"],
+                procTagQ[p, "copy" | "uncurry"],
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -165,7 +165,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 }]
                 ,
 
-                MatchQ[tag, "curry"],
+                procTagQ[p, "curry"],
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -174,15 +174,19 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         {i, 2}
                     ]
                 }],
+                procTagQ[p, "double"],
+                With[{fun = outlineShapeFun},
+                    {EdgeForm[Thickness[0.03]], fun[##]} &
+                ],
 
                 True,
                 outlineShapeFun
             ]];
-            With[{fun = shapeFun},
+            With[{fun = shapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1}, {1, 1}]},
                 If[ TrueQ[OptionValue["OutlineProcess"]],
                     shapeFun = Function[{fun[##],
                         FaceForm[Transparent], EdgeForm[Dashed],
-                        outlineShapeFun[##]
+                        GeometricTransformation[outlineShapeFun[##], ScalingTransform[scale, vertexCoords]]
                     }]
                 ]
             ];
@@ -214,7 +218,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         {i, Range[outArity]}],
                     Plus | Part
                 ],
-                processLabel = If[TrueQ[OptionValue["ShowProcessLabels"]] && ! MatchQ[label, "Composite"[_]], stripProcSupers @ label, ""]
+                processLabel = If[TrueQ[OptionValue["ShowProcessLabels"]] && ! procTagQ[p, "composite"], stripProcSupers @ label, ""]
             },
                 With[{shapeFunBody = {
                         Inactive[fun][##],
@@ -372,7 +376,7 @@ withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0
                 multiplyWidthOut = Replace[productWidth, Automatic -> 1 / 5],
                 vsize = vertexSize[v], wsize = vertexSize[w],
                 dir = Small (1 - 2 Boole @ dualTypeQ[If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]]]),
-                label = If[TrueQ[showLabels] && Not[MatchQ[procTag[v], "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]
+                label = If[TrueQ[showLabels] && Not[procTagQ[v, "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]
             },
                 With[{fun = Which[
                     v === w,
@@ -413,10 +417,10 @@ simplifyProcGraph[g_Graph, OptionsPattern[ProcGraph]] := withProcGraphEdgeShapeF
 simplifyIdentities[g_Graph] := Module[{
     procs, ins, outs
 },
-    procs = Select[VertexList[g], MatchQ["id"] @* procTag];
-    ins = With[{v = SelectFirst[VertexInComponent[g, #], Not @* MatchQ["id"] @* procTag]},
+    procs = Select[VertexList[g], procTagQ["id"]];
+    ins = With[{v = SelectFirst[VertexInComponent[g, #], Not @* procTagQ["id"]]},
             If[MissingQ[v], Missing[], First @ EdgeList[g, DirectedEdge[Sequence @@ FindPath[g, v, #][[1, ;; 2]], ___]]]] & /@ procs;
-    outs = With[{v = SelectFirst[VertexOutComponent[g, #], Not @* MatchQ["id"] @* procTag]},
+    outs = With[{v = SelectFirst[VertexOutComponent[g, #], Not @* procTagQ["id"]]},
             If[MissingQ[v], Missing[], First @ EdgeList[g, DirectedEdge[Sequence @@ FindPath[g, #, v][[1, - 2 ;;]], ___]]]] & /@ procs;
     EdgeAdd[
         VertexDelete[g, procs],
@@ -433,7 +437,7 @@ simplifyIdentities[g_Graph] := Module[{
 simplifyPermutations[g_Graph] := Module[{
     proc, arity, in, out
 },
-    proc = SelectFirst[VertexList[g], MatchQ["permutation"] @* procTag];
+    proc = SelectFirst[VertexList[g], procTagQ["permutation"]];
     If[MissingQ[proc], Return[g]];
     arity = Length[proc[[2]]];
     in = First[EdgeList[g, DirectedEdge[_, proc, _[_, #]]], Missing[]] & /@ Range[arity];
@@ -451,13 +455,13 @@ simplifyPermutations[g_Graph] := Module[{
 ]
 
 
-simplifyVoids[g_Graph] := VertexDelete[g, Select[VertexList[g], MatchQ["initial" | "terminal" | "empty"] @* procTag]]
+simplifyVoids[g_Graph] := VertexDelete[g, Select[VertexList[g], procTagQ["initial" | "terminal" | "empty"]]]
 
 
 simplifyCups[g_Graph] := Module[{
     procs, outs
 },
-    procs = Select[VertexList[g], MatchQ["cup"] @* procTag];
+    procs = Select[VertexList[g], procTagQ["cup"]];
     outs = SortBy[EdgeList[g, DirectedEdge[#, __]], #[[3, 1]] &] & /@ procs;
     EdgeAdd[
         VertexDelete[g, procs],
@@ -478,7 +482,7 @@ simplifyCups[g_Graph] := Module[{
 simplifyCaps[g_Graph] := Module[{
     procs, ins
 },
-    procs = Select[VertexList[g], MatchQ["cap"] @* procTag];
+    procs = Select[VertexList[g], procTagQ["cap"]];
     ins = SortBy[EdgeList[g, DirectedEdge[_, #, ___]], #[[3, 2]] &] & /@ procs;
     EdgeAdd[
         VertexDelete[g, procs],

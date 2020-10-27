@@ -1,39 +1,39 @@
 Package["DiagramProcess`"]
 
-PackageScope["topologicalProcQ"]
-PackageScope["unlabeledProcQ"]
-PackageScope["zeroProc"]
-PackageScope["emptyProc"]
-PackageScope["identityProc"]
-PackageScope["castProc"]
-PackageScope["permutationProc"]
-PackageScope["swapProc"]
-PackageScope["cupProc"]
-PackageScope["capProc"]
-PackageScope["copyProc"]
-PackageScope["sumProc"]
-PackageScope["uncurryProc"]
-PackageScope["curryProc"]
-PackageScope["withTerminals"]
+PackageExport["topologicalProcQ"]
+PackageExport["unlabeledProcQ"]
+PackageExport["zeroProc"]
+PackageExport["emptyProc"]
+PackageExport["identityProc"]
+PackageExport["castProc"]
+PackageExport["permutationProc"]
+PackageExport["swapProc"]
+PackageExport["cupProc"]
+PackageExport["capProc"]
+PackageExport["copyProc"]
+PackageExport["sumProc"]
+PackageExport["uncurryProc"]
+PackageExport["curryProc"]
+PackageExport["withTerminals"]
 
 
 
-topologicalProcQ[p_Proc] := MatchQ[procTag[p], "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal"]
+topologicalProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal"]
 
 
-unlabeledProcQ[p_Proc] := MatchQ[procTag[p], "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal" | "curry" | "uncurry"]
+unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal" | "curry" | "uncurry"]
 
 
-emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, "empty"]
+emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, {"empty"}]
 
 
-zeroProc[] := Proc[Labeled[0 &, "0"], {}, {}, "zero"]
+zeroProc[] := Proc[Labeled[0 &, "0"], {}, {}, {"zero"}]
 
 
-identityProc[in_] := Proc[Labeled[Identity, Labeled[Unique["id"], "1"]], {SystemType @ in}, {SystemType @ in}, "id"]
+identityProc[in_] := Proc[Labeled[Identity, "1"], {SystemType @ in}, {SystemType @ in}, {"id"}, Unique["id"]]
 
 
-castProc[in_, out_] := Proc[Labeled["Cast", Labeled[Unique["cast"], "1"]], {SystemType @ in}, {SystemType @ out}, "cast"]
+castProc[in_, out_] := Proc[Labeled["Cast", "1"], {SystemType @ in}, {SystemType @ out}, {"cast"}, Unique["cast"]]
 
 
 permutationProc[perm_Cycles, in_List] := With[{
@@ -41,34 +41,35 @@ permutationProc[perm_Cycles, in_List] := With[{
     invPerm = InversePermutation @ perm,
     inTypes = SystemType /@ in
 },
-    Proc[Labeled[Permute[{##}, invPerm] &, Labeled[Unique["pi"], Subscript["\[Pi]", Row @ ps]]], inTypes, Permute[inTypes, invPerm], "permutation"]
+    Proc[Labeled[Permute[{##}, invPerm] &, Subscript["\[Pi]", Row @ ps]], inTypes, Permute[inTypes, invPerm], {"permutation"}, Unique["pi"]]
 ]
 
 
 swapProc[A_, B_] := permutationProc[Cycles[{{1, 2}}], {A, B}]
 
 
-cupProc[out_] := Proc[Labeled["Cup", Labeled[Unique["cup"], "\[Union]"]], {}, {dualType @ SystemType[out], SystemType[out]}, "cup"]
+cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out], SystemType[out]}, {"cup"}, Unique["cup"]]
 
 
-capProc[in_] := ReplacePart[transposeProc @ cupProc[in], {1 -> Labeled["Cap", Labeled[Unique["cap"], "\[Intersection]"]], -1 -> "cap"}]
+capProc[in_] := mapProcLabel["\[Intersection]" &, transposeProc @ cupProc[in]]
 
 
-copyProc[in_, n_ : 2] := Proc[Labeled[{#, #} &, Labeled[Unique["copy"], "\[Gamma]"]], {SystemType[in]}, Table[SystemType[in], n], "copy"]
+copyProc[in_, n_ : 2] := Proc[Labeled[{#, #} &, "\[Gamma]"], {SystemType[in]}, Table[SystemType[in], n], {"copy"}, Unique["copy"]]
 
 
-sumProc[i_] := Proc[Labeled["Sum", Labeled[Unique["sum"], Subscript["\[CapitalSigma]", i]]], {}, {}, "sum"]
+sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
 
 
-uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, Heads -> True] &, Labeled[Unique["uncurry"], "uncurry"]], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts, "uncurry"]
+uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, Heads -> True] &, "uncurry"], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts, {"uncurry"}, Unique["uncurry"]]
 
-curryProc[ts_List] := Proc[Labeled[Apply[CircleTimes], Labeled[Unique["curry"], "curry"]], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, "curry"]
+
+curryProc[ts_List] := Proc[Labeled[Apply[CircleTimes], "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
    q,
-   initial = Proc[Labeled[unWrap[{##}] &, Labeled[Unique["initial"], "\[ScriptCapitalI]"]], in, in, "initial"],
-   terminal = Proc[Labeled[unWrap[{##}] &, Labeled[Unique["terminal"], "\[ScriptCapitalT]"]], out, out, "terminal"]
+   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"initial"}, Unique["initial"]],
+   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, {"terminal"}, Unique["terminal"]]
 },
     q = If[Length @ out > 0, terminal @* p, p];
     flattenProc @ If[Length[in] > 0, q @* initial, q]

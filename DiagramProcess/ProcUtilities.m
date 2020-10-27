@@ -10,8 +10,16 @@ PackageExport["traceProc"]
 PackageExport["procToState"]
 PackageExport["procToEffect"]
 PackageExport["compositeProc"]
+PackageExport["stripComposites"]
 PackageExport["doubleProc"]
+PackageExport["unDoubleProc"]
 
+PackageScope["mapProcLabel"]
+PackageScope["setProcTag"]
+PackageScope["unsetProcTag"]
+PackageScope["setProcData"]
+
+PackageScope["procRotatedQ"]
 PackageScope["compatibleProcsQ"]
 PackageScope["composeProcs"]
 PackageScope["procInArity"]
@@ -26,46 +34,93 @@ PackageScope["unProc"]
 
 
 
+mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procFunc[p], f[procLabel[p]]]]
+
+
+unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {4}]
+
+
+setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
+
+setProcTag[p_Proc, tag : "composition" | "parallel composition" | "plus"] :=
+    setProcTag[ unsetProcTag[p, "composition" | "parallel composition" | "plus"], tag]
+
+setProcTag[p_Proc, tag_] := If[procTagQ[p, tag], p, MapAt[Append[tag], p, {4}]]
+
+
+procData[p_Proc] :=  If[Length[p] > 4, p[[5]], procLabel[p]]
+
+
+setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Append[p, data]]
+
+
+procRotatedQ[p_Proc] := Apply[Xor, procTagQ[p, #] & /@ {"transpose", "algebraic transpose", "adjoint"}]
+
+
 transposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[transposeProc /@ {ps}]
 
 transposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[transposeProc /@ {ps}]
 
-transposeProc[p : Proc[f_, in_, out_, ___]] :=
-    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, "Transpose"[_]], First @ label, "Transpose"[label]]]], Map[dualType, Reverse @ out], Map[dualType, Reverse @ in],
-        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
-    ]
+transposeProc[p : Proc[_, in_, out_, ___]] :=
+    setProcTag[ReplacePart[mapProcLabel[Transpose, p], {2 -> Map[dualType, Reverse @ out], 3 -> Map[dualType, Reverse @ in]}], "transpose"]
 
 
 algebraicTransposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[algebraicTransposeProc /@ {ps}]
 
 algebraicTransposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[algebraicTransposeProc /@ {ps}]
 
-algebraicTransposeProc[p : Proc[f_, in_, out_, ___]] :=
-    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, _Transpose], First @ label, Transpose[label]]]], Map[dualType, out], Map[dualType, in],
-        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
-    ]
+algebraicTransposeProc[p : Proc[_, in_, out_, ___]] :=
+    setProcTag[ReplacePart[mapProcLabel[Transpose, p], {2 -> Map[dualType, out], 3 -> Map[dualType, in]}], "algebraic transpose"]
 
 
 adjointProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[adjointProc /@ {ps}]
 
 adjointProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[adjointProc /@ {ps}]
 
-adjointProc[p : Proc[f_, in_, out_, ___]] :=
-    Proc[Labeled[procFunc[p], With[{label = procLabel[p]}, If[MatchQ[label, _SuperDagger], First @ label, SuperDagger[label]]]], Map[dualType, out], Map[dualType, in],
-        procTag[p] /. {"cup" -> "cap", "cap" -> "cup"}
-    ]
+adjointProc[p : Proc[_, in_, out_, ___]] :=
+    setProcTag[ReplacePart[mapProcLabel[SuperStar, p], {2 -> Map[dualType, out], 3 -> Map[dualType, in]}], "adjoint"]
 
 
-conjugateProc[p_Proc] := transposeProc[adjointProc[p]] /. "Transpose"[SuperDagger[l_]] :> OverBar[l]
+conjugateProc[p_Proc] := mapProcLabel[Replace[Transpose[SuperDagger[l_]] :> OverBar[l]], transposeProc[adjointProc[p]]]
 
 
-compositeProc[p_Proc] := Proc[Labeled[procFunc[p], "Composite"[procLabel[p]]], procInput[p], procOutput[p], procTag[p]]
+compositeProc[p_Proc] := setProcTag[p, "composite"]
+
+compositeProc[p_Proc, label_] := mapProcLabel[label &, compositeProc[p]]
+
+compositeProc[p_Proc, label_, data_] := setProcData[compositeProc[p, label], data]
 
 
-doubleProc[p_Proc] := With[{q = CircleTimes[conjugateProc[p], p]}, compositeProc[curryProc[procOutput[q]] @* q @* uncurryProc[procInput[q]]]]
+stripComposites[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "composite"] :> unsetTagProc[q, "composite"]]
 
 
-stripProcSupers[expr_] := expr //. "Transpose"[l_] | Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l
+doublePermutation[n_Integer] := FindPermutation[Catenate @ Thread[{Reverse[Range[n]], Range[n + 1, 2 n]}]]
+
+doubleProc[p_Proc] := Module[{
+    label = procLabel[p],
+    q,
+    cp = conjugateProc[p],
+    permutationOut, permutationIn
+},
+    q = CircleTimes[cp, p];
+    If[Length[procOutput[q]] > 0,
+        permutationOut = permutationProc[InversePermutation @ doublePermutation[Length[procOutput[p]]], Join[procOutput[cp], procOutput[p]]];
+        q = Apply[CircleTimes, curryProc /@ Partition[procOutput[permutationOut], 2]] @* permutationOut @* q
+    ];
+    If[Length[procInput[q]] > 0,
+        permutationIn = With[{perm = doublePermutation[Length[procInput[p]]]},
+            permutationProc[perm, Permute[Join[procInput[cp], procInput[p]], perm]]
+        ];
+        q = q @* Apply[CircleTimes, uncurryProc /@ Partition[procInput[permutationIn], 2]]
+    ];
+    setProcData[setProcTag[mapProcLabel[Style[OverHat[label], Bold] &, q], "double"], p]
+]
+
+
+unDoubleProc[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> procData[q]]
+
+
+stripProcSupers[expr_] := expr //. Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l
 
 
 flattenProc[p_Proc] := p //. Map[
@@ -80,7 +135,7 @@ flattenProc[p_Proc] := p //. Map[
 composeProcs[p : Proc[f_, fIn_, fOut_, ___], q : Proc[g_, gIn_, gOut_, ___]] :=
     Which[
         fIn === gOut,
-        Proc[Defer[p @* q], gIn, fOut, Composition],
+        Proc[Defer[p @* q], gIn, fOut, {"composition"}],
 
         True,
         Module[{
@@ -137,7 +192,7 @@ procToEffect[p_Proc] := With[{caps = capProc /@ p[[3]]}, Fold[
 compatibleProcsQ[ps__Proc] := Equal @@ Map[#[[2]] &, {ps}] && Equal @@ Map[#[[3]] &, {ps}]
 
 
-unProc[p_Proc] := unLabel[p //. Proc[op_, __] :> op /. Defer -> Identity]
+unProc[p_Proc] := unLabelAll[p //. Proc[op_, __] :> op /. Defer -> Identity]
 
 
 procInArity[Proc[_, in_, ___]] := Length[in]

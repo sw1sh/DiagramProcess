@@ -6,7 +6,7 @@ PackageScope["procFunc"]
 PackageScope["procInput"]
 PackageScope["procOutput"]
 PackageScope["procLabel"]
-PackageScope["procTag"]
+PackageScope["procTagQ"]
 
 
 Options[Proc] = {};
@@ -14,7 +14,7 @@ Options[Proc] = {};
 (*Construction*)
 
 Proc[Subsuperscript[f_, Row[As_], Row[Bs_]]] :=
-    Proc[f, SystemType /@ As, SystemType /@ Bs, None]
+    Proc[f, SystemType /@ As, SystemType /@ Bs, {}]
 
 Proc[Subsuperscript[f_, A_, Bs_Row]] :=
     Proc[Subsuperscript[f, Row @ wrap @ A, Bs]]
@@ -72,12 +72,12 @@ Proc /: CircleTimes[p_Proc] := p
 Proc /: CircleTimes[ps__Proc] :=
     flattenProc @
         Proc[Defer[CircleTimes[ps]], Catenate[#[[2]] & /@ {ps}],
-          Catenate[#[[3]] & /@ {ps}], CircleTimes]
+          Catenate[#[[3]] & /@ {ps}], {"parallel composition"}]
 
 
 Proc /: Plus[ps__Proc] :=
     flattenProc @
-        Proc[Defer[Plus[ps]], {ps}[[1, 2]], {ps}[[1, 3]], Plus]
+        Proc[Defer[Plus[ps]], {ps}[[1, 2]], {ps}[[1, 3]], {"plus"}]
 
 
 Proc /: Transpose[p_Proc] := transposeProc @ p
@@ -117,7 +117,11 @@ procInput[Proc[_, in_, ___]] := in
 procOutput[Proc[_, _, out_, ___]] := out
 
 
-procTag[p_Proc] := p[[-1]]
+procTagQ[Proc[_, _, _, tags_List, ___], patt_] := AnyTrue[tags, MatchQ[patt]]
+
+procTagQ[p_Proc, ps_List] := AllTrue[ps, procTagQ[p, #] &]
+
+procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 
 
 (* Eval Proc *)

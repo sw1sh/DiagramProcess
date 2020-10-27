@@ -44,28 +44,27 @@ shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[
 
 Options[procShape] = {"Shape" -> "Trapezoid"}
 
-procShape[coord_, w_, h_, OptionsPattern[]] := {
-    FaceForm[Transparent], EdgeForm[Black],
-    Translate[
-        Switch[OptionValue["Shape"],
-            "Diamond",
-            Polygon[{{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, 3 h / 4}, {0, h / 4}}],
-            "UpTriangle",
-            Polygon[{{w / 4, 0}, {w, 0}, {w / 2, h}, {w / 4, h / 2}}],
-            "DownTriangle",
-            Polygon[{{w / 4, h}, {w, h}, {w / 2, 0}, {w / 4, h / 2}}],
-            "Rectangle",
-            Rectangle[{0, 0}, {w, h}],
-            (*"TransposedUpTriangle",
-            Polygon[{{0, h}, {w, h}, {w, h / 2}, {w / 2, 0}}],
-            "TransposedDownTriangle",
-            Polygon[{{0, 0}, {w, 0}, {w, h / 2}, {w / 2, h}}],*)
-            _,
-            Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}]
-        ],
-        coord - {w / 2, h / 2}
-    ]
-}
+procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
+    graphics
+},
+    {graphics, center} = Switch[
+        OptionValue["Shape"],
+        "Diamond",
+        {Polygon[{{0, 0}, {0, h / 9}, {w 7 / 16, h / 2}, {w, 0}, {w 7 / 16, - h / 2}, {0, - h / 9}}], {w 7 / 16, 0}},
+        "UpTriangle",
+        {Polygon[{{0, 0}, {w, 0}, {w 3 / 8, h}, {0, h 2 / 5}}], {w 3 / 8, h / 2}},
+        "DownTriangle",
+        {Polygon[{{0, 0}, {w, 0}, {w 3 / 8, - h}, {0, - h 2 / 5}}], {w 3 / 8, - h / 2}},
+        "Rectangle",
+        {Rectangle[{0, 0}, {w, h}], {w / 2, h / 2}},
+        _,
+        {Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}], {w / 2, h / 2}}
+    ];
+    {
+        FaceForm[Transparent], EdgeForm[Black],
+        Translate[graphics, coord - center]
+    }
+]
 
 
 Options[Wire] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic,

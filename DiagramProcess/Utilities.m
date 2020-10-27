@@ -5,14 +5,16 @@ PackageScope["wrap"]
 PackageScope["unWrap"]
 PackageScope["enumerate"]
 PackageScope["unLabel"]
+PackageScope["unLabelAll"]
 PackageScope["positionIn"]
 PackageScope["vertexMap"]
 PackageScope["edgeMap"]
 PackageScope["graphReplace"]
+PackageScope["replaceUnderHold"]
 
 
 
-getLabel[Labeled[_, l_]] := getLabel[l]
+getLabel[Labeled[_, l_]] := l
 
 getLabel[DirectedEdge[_, _, l_]] := l
 
@@ -21,7 +23,9 @@ getLabel[e : DirectedEdge[_, _]] := e
 getLabel[l_] := l
 
 
-unLabel[expr_] := expr //. Labeled[x_, _] :> x
+unLabel[expr_] := Replace[expr, Labeled[x_, _] :> x]
+
+unLabelAll[expr_] := expr //. Labeled[x_, _] :> x
 
 
 wrap[l_List] := l
@@ -66,3 +70,8 @@ edgeMap[f_] := Function[g, edgeMap[f, g]]
 
 
 graphReplace[g_Graph, rules_] := edgeMap[ReplaceAll[rules], vertexMap[ReplaceAll[rules], g]]
+
+
+replaceUnderHold[expr_, rule_] := With[{pos = Position[expr, First @ rule]},
+    Replace[ReplacePart[expr, Thread[pos -> Map[Replace[rule], Extract[expr, pos]]]], rule]
+]
