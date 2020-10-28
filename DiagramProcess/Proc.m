@@ -5,6 +5,7 @@ PackageExport["Proc"]
 PackageScope["procFunc"]
 PackageScope["procInput"]
 PackageScope["procOutput"]
+PackageScope["procTags"]
 PackageScope["procLabel"]
 PackageScope["procTagQ"]
 
@@ -117,9 +118,12 @@ procInput[Proc[_, in_, ___]] := in
 procOutput[Proc[_, _, out_, ___]] := out
 
 
-procTagQ[Proc[_, _, _, tags_List, ___], patt_] := AnyTrue[tags, MatchQ[patt]]
+procTags[p_Proc] := p[[4]]
+
 
 procTagQ[p_Proc, ps_List] := AllTrue[ps, procTagQ[p, #] &]
+
+procTagQ[p_Proc, patt_] := AnyTrue[procTags[p], MatchQ[patt]]
 
 procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 

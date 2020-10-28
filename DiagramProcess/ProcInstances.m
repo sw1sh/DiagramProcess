@@ -14,6 +14,8 @@ PackageExport["copyProc"]
 PackageExport["sumProc"]
 PackageExport["uncurryProc"]
 PackageExport["curryProc"]
+PackageExport["discardProc"]
+
 PackageExport["withTerminals"]
 
 
@@ -21,7 +23,8 @@ PackageExport["withTerminals"]
 topologicalProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal"]
 
 
-unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal" | "curry" | "uncurry"]
+unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" |
+    "copy" | "initial" | "terminal" | "curry" | "uncurry" | "discard"]
 
 
 emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, {"empty"}]
@@ -64,6 +67,9 @@ uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, Heads -> Tr
 
 
 curryProc[ts_List] := Proc[Labeled[Apply[CircleTimes], "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
+
+
+discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{

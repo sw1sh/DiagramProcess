@@ -54,6 +54,8 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     p
                 ]},
                     Which[
+                        procTagQ[p, "zero"],
+                        "None",
                         procTagQ[p, "composite"],
                         "Rectangle",
                         procArity[q] == 0,
@@ -142,12 +144,14 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 With[{multiply = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]]},
                 Function[{coord, v, size}, If[procRotatedQ[p], {
                     Black,
-                    Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
+                    Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2},
+                         coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "UpArc",
                          "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
                 }, {
                     Black,
-                    Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2}, coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
+                    Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2},
+                         coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
                          "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
                 }
@@ -158,7 +162,8 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 Function[{coord, v, size}, {
                     Black,
                     Table[
-                        Wire[coord + {edgeSideShift[i, {1, 1}, 2] productWidth, - size[[2]] / 2}, coord + {edgeSideShift[i, size, 2], size[[2]] / 2}, "",
+                        Wire[coord + {edgeSideShift[i, {1, 1}, 2] productWidth, - size[[2]] / 2},
+                             coord + {edgeSideShift[i, size, 2], size[[2]] / 2}, "",
                              "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
                         {i, 2}
                     ]
@@ -169,19 +174,29 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 Function[{coord, v, size}, {
                     Black,
                     Table[
-                        Wire[coord + {edgeSideShift[i, size, 2], - size[[2]] / 2}, coord + {edgeSideShift[i, {1, 1}, 2] productWidth, size[[2]] / 2}, "",
+                        Wire[coord + {edgeSideShift[i, size, 2], - size[[2]] / 2},
+                             coord + {edgeSideShift[i, {1, 1}, 2] productWidth, size[[2]] / 2}, "",
                              "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
                         {i, 2}
                     ]
                 }],
-                procTagQ[p, "double"],
-                With[{fun = outlineShapeFun},
-                    {EdgeForm[Thickness[0.03]], fun[##]} &
-                ],
+
+                procTagQ[p, "discard"],
+                Function[{coord, v, size}, {
+                    Black,
+                    Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, - size[[2]] / 2},
+                         coord + {edgeSideShift[2, {1, 1}, 2] * productWidth, - size[[2]] / 2}, "",
+                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "UpArc"]
+                }],
 
                 True,
                 outlineShapeFun
             ]];
+            If[ procTagQ[p, "double"],
+                With[{fun = shapeFun},
+                    shapeFun = {EdgeForm[Thickness[0.03]], fun[##]} &
+                ]
+            ];
             With[{fun = shapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1}, {1, 1}]},
                 If[ TrueQ[OptionValue["OutlineProcess"]],
                     shapeFun = Function[{fun[##],
@@ -244,7 +259,7 @@ ProcGraph[Proc[f : _Composition | _CircleTimes | _Plus, args__], opts : OptionsP
     ProcGraph[Proc[Defer[f], args], opts]
 
 
-ProcGraph[Proc[Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := Apply[Plus, ProcGraph[#, opts] & /@ {ps}]
+ProcGraph[Proc[Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := ProcGraph[#, opts] & /@ {ps}
 
 
 ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{

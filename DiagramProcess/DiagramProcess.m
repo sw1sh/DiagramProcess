@@ -5,17 +5,17 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = Join[{"Simplify" -> False}, Options[ProcGraph]]
+Options[DiagramProcess] = Join[{"Simplify" -> False, "Double" -> False}, Options[ProcGraph]]
 
 
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
 
-DiagramProcess[p_Proc, ___]["Process"] := p
+DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[TrueQ[OptionValue["Double"]], doubleProc @ p, unDoubleProc @ p]
 
 
-DiagramProcess[p_Proc, opts : OptionsPattern[]]["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
-    g = ProcGraph[p, gopts]
+(d : DiagramProcess[_, opts : OptionsPattern[]])["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
+    g = ProcGraph[d["Process"], gopts]
 },
     If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph @ g, g]
 ]
@@ -24,7 +24,7 @@ DiagramProcess[p_Proc, opts : OptionsPattern[]]["Diagram" | "Graph", gopts : Opt
 DiagramProcess[p_Proc, ___][x___] := p[x]
 
 
-DiagramProcess[DiagramProcess[p_, ___], args___] := DiagramProcess[p, args]
+DiagramProcess[d_DiagramProcess, args___] := DiagramProcess[d["Process"], args]
 
 
 DiagramProcess[boxNames_List, opts : OptionsPattern[]] := DiagramProcess[boxNamesProc[boxNames], opts]
@@ -57,6 +57,9 @@ DiagramProcess["Uncurry", as_List, opts : OptionsPattern[]] :=
 
 DiagramProcess["Curry", as_List, opts : OptionsPattern[]] :=
     DiagramProcess[curryProc[as], opts]
+
+DiagramProcess["Discard", a_, opts : OptionsPattern[]] :=
+    DiagramProcess[discardProc[a], opts]
 
 DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]
 
@@ -97,7 +100,8 @@ DiagramProcess /: Equal[a_DiagramProcess, b_DiagramProcess] := ContainsExactly[
 ]
 
 
-DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]], form_] := Module[{
+DiagramProcess /: MakeBoxes[d : DiagramProcess[_, opts : OptionsPattern[]], form_] := Module[{
+    p = d["Process"],
     above, below
 },
     above = {
@@ -109,7 +113,7 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[p_Proc, opts : OptionsPattern[]],
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         d,
-        Magnify[GraphPlot @ d[
+        Magnify[Plus @@ GraphPlot /@ wrap @ d[
             "Diagram",
             Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
         ], 0.5],

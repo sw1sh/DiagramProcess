@@ -57,6 +57,8 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
         {Polygon[{{0, 0}, {w, 0}, {w 3 / 8, - h}, {0, - h 2 / 5}}], {w 3 / 8, - h / 2}},
         "Rectangle",
         {Rectangle[{0, 0}, {w, h}], {w / 2, h / 2}},
+        "None",
+        {{}, {w / 2, h / 2}},
         _,
         {Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}], {w / 2, h / 2}}
     ];

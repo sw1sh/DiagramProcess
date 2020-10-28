@@ -75,3 +75,6 @@ graphReplace[g_Graph, rules_] := edgeMap[ReplaceAll[rules], vertexMap[ReplaceAll
 replaceUnderHold[expr_, rule_] := With[{pos = Position[expr, First @ rule]},
     Replace[ReplacePart[expr, Thread[pos -> Map[Replace[rule], Extract[expr, pos]]]], rule]
 ]
+
+replaceUnderHold[rule_] := Function[expr, replaceUnderHold[expr, rule]]
+

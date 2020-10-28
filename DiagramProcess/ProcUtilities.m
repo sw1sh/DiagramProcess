@@ -42,10 +42,12 @@ unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {4}]
 
 setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
 
-setProcTag[p_Proc, tag : "composition" | "parallel composition" | "plus"] :=
-    setProcTag[ unsetProcTag[p, "composition" | "parallel composition" | "plus"], tag]
+setProcTag[p_Proc, tag : "composition" | "parallel composition" | "plus" | "sum"] /; procTagQ[p, "composition" | "parallel composition" | "plus" | "sum"] :=
+    setProcTag[unsetProcTag[p, "composition" | "parallel composition" | "plus" | "sum"], tag]
 
 setProcTag[p_Proc, tag_] := If[procTagQ[p, tag], p, MapAt[Append[tag], p, {4}]]
+
+setProcTag[p_Proc, tags_List] := Fold[setProcTag, p, tags]
 
 
 procData[p_Proc] :=  If[Length[p] > 4, p[[5]], procLabel[p]]
@@ -75,13 +77,13 @@ algebraicTransposeProc[p : Proc[_, in_, out_, ___]] :=
 
 adjointProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[adjointProc /@ {ps}]
 
-adjointProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[adjointProc /@ {ps}]
+adjointProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ adjointProc /@ {ps}
 
 adjointProc[p : Proc[_, in_, out_, ___]] :=
-    setProcTag[ReplacePart[mapProcLabel[SuperStar, p], {2 -> Map[dualType, out], 3 -> Map[dualType, in]}], "adjoint"]
+    setProcTag[ReplacePart[mapProcLabel[SuperDagger, p], {2 -> Map[dualType, out], 3 -> Map[dualType, in]}], "adjoint"]
 
 
-conjugateProc[p_Proc] := mapProcLabel[Replace[Transpose[SuperDagger[l_]] :> OverBar[l]], transposeProc[adjointProc[p]]]
+conjugateProc[p_Proc] := replaceUnderHold[transposeProc[adjointProc[p]], Transpose[SuperDagger[l_]] :> OverBar[l]]
 
 
 compositeProc[p_Proc] := setProcTag[p, "composite"]
@@ -99,25 +101,33 @@ doublePermutation[n_Integer] := FindPermutation[Catenate @ Thread[{Reverse[Range
 doubleProc[p_Proc] := Module[{
     label = procLabel[p],
     q,
-    cp = conjugateProc[p],
-    permutationOut, permutationIn
+    cp = conjugateProc[p]
 },
     q = CircleTimes[cp, p];
-    If[Length[procOutput[q]] > 0,
-        permutationOut = permutationProc[InversePermutation @ doublePermutation[Length[procOutput[p]]], Join[procOutput[cp], procOutput[p]]];
-        q = Apply[CircleTimes, curryProc /@ Partition[procOutput[permutationOut], 2]] @* permutationOut @* q
+    If[ Length[procOutput[q]] > 0,
+        Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p]]], pi},
+            pi = permutationProc[perm, Join[procOutput[cp], procOutput[p]]];
+            If[! OrderedQ[PermutationList[perm]],
+                q = pi @* q;
+            ];
+            q = Apply[CircleTimes, curryProc /@ Partition[procOutput[pi], 2]] @* q
+        ]
     ];
-    If[Length[procInput[q]] > 0,
-        permutationIn = With[{perm = doublePermutation[Length[procInput[p]]]},
-            permutationProc[perm, Permute[Join[procInput[cp], procInput[p]], perm]]
+    If[ Length[procInput[q]] > 0,
+        Module[{perm = doublePermutation[Length[procInput[p]]], pi},
+            pi = permutationProc[perm, Permute[Join[procInput[cp], procInput[p]], perm]];
+            If[! OrderedQ[PermutationList[perm]],
+                q = q @* pi
+            ];
+            q = q @* Apply[CircleTimes, uncurryProc /@ Partition[procInput[pi], 2]]
         ];
-        q = q @* Apply[CircleTimes, uncurryProc /@ Partition[procInput[permutationIn], 2]]
+
     ];
-    setProcData[setProcTag[mapProcLabel[Style[OverHat[label], Bold] &, q], "double"], p]
+    setProcData[setProcTag[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procTags[p], "double"]], p]
 ]
 
 
-unDoubleProc[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> procData[q]]
+unDoubleProc[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> MapAt[unLabel, unsetProcTag[q, "double"], {1}]] (*replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> procData[q]]*)
 
 
 stripProcSupers[expr_] := expr //. Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l
