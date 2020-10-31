@@ -127,7 +127,9 @@ doubleProc[p_Proc] := Module[{
 ]
 
 
-unDoubleProc[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> MapAt[unLabel, unsetProcTag[q, "double"], {1}]] (*replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> procData[q]]*)
+unDoubleProc[p_Proc] /; procTagQ[p, "double"] := MapAt[unLabel, unsetProcTag[p, "double"], {1}](*replaceUnderHold[p, q_Proc /; procTagQ[q, "double"] :> MapAt[unLabel, unsetProcTag[q, "double"], {1}]]*)
+
+unDoubleProc[p_Proc] := p
 
 
 stripProcSupers[expr_] := expr //. Transpose[l_] | SuperDagger[l_] | OverBar[l_] :> l

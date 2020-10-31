@@ -45,7 +45,7 @@ shiftVertices[g_Graph, shift_] := Annotate[g, VertexCoordinates -> Normal @ Map[
 Options[procShape] = {"Shape" -> "Trapezoid"}
 
 procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
-    graphics
+    graphics, center
 },
     {graphics, center} = Switch[
         OptionValue["Shape"],
@@ -59,11 +59,13 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
         {Rectangle[{0, 0}, {w, h}], {w / 2, h / 2}},
         "None",
         {{}, {w / 2, h / 2}},
+        "Disk",
+        {Disk[{0, 0}, {w, h}], {0, 0}},
         _,
         {Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}], {w / 2, h / 2}}
     ];
     {
-        FaceForm[Transparent], EdgeForm[Black],
+        EdgeForm[Black],
         Translate[graphics, coord - center]
     }
 ]
@@ -72,16 +74,17 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
 Options[Wire] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic,
     "Direction" -> "BottomUp",
     "VerticalShift" -> 1, "HorizontalShift" -> 1,
-    "Multiply" -> 1, "MultiplyWidthIn" -> 0.01, "MultiplyWidthOut" -> 0.01}
+    "Multiply" -> 1, "MultiplyWidthIn" -> 0.1, "MultiplyWidthOut" -> 0.1}
 
 Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
-    Arrowheads[{{
-        OptionValue["ArrowSize"],
-        OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
-    ],
     Table[
         With[{shiftIn = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthIn"],
-              shiftOut = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"]},
+              shiftOut = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"],
+              arrowSize = OptionValue["ArrowSize"]},
+        {Arrowheads[{{
+            If[ListQ[arrowSize], arrowSize[[i]], arrowSize],
+            OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
+        ],
         Switch[
             OptionValue["Direction"],
             "BottomUp",
@@ -114,6 +117,7 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
                 to - {shiftOut, 0}
             }]]
         ]
+        }
         ],
         {i, OptionValue["Multiply"]}
     ],

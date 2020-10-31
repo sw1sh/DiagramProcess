@@ -3,6 +3,7 @@ Package["DiagramProcess`"]
 PackageExport["SystemType"]
 
 PackageScope["dualTypeQ"]
+PackageScope["dualTypesQ"]
 PackageScope["dualType"]
 PackageScope["typeArity"]
 
@@ -30,15 +31,22 @@ dualTypeQ[SystemType[_, opts : OptionsPattern[]]] :=
     TrueQ[OptionValue[SystemType, opts, "Dual"]]
 
 
-dualType[SystemType[t_, opts : OptionsPattern[SystemType]]] :=
+dualType[SystemType[t : Except[_Defer], opts : OptionsPattern[SystemType]]] :=
     SystemType[t,
       "Dual" -> Not[OptionValue[SystemType, opts, "Dual"]],
       Sequence @@ FilterRules[opts, Except["Dual"]]]
+
+dualType[SystemType[Defer[CircleTimes[ts__]], ___]] := Apply[CircleTimes, dualType /@ {ts}]
 
 
 typeArity[_SystemType] := 1
 
 typeArity[SystemType[Defer[CircleTimes[ts__]], ___]] := Total[typeArity /@ {ts}]
+
+
+dualTypesQ[SystemType[Defer[CircleTimes[ts__]], ___]] := dualTypeQ /@ {ts}
+
+dualTypesQ[t_SystemType] := {dualTypeQ[t]}
 
 
 (* Boxes *)

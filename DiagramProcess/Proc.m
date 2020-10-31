@@ -133,6 +133,8 @@ procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 Proc::typeSizeMissmatch =
     "Number of inputs `1` doesn't match number of outputs `2`. Padding with Missing[]";
 
+Proc[Labeled[Defer[q_], _], ___][x___] := q[x]
+
 Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
   q = Proc[Defer[Composition[ps]], in, p[[2]], args]
 },
@@ -161,7 +163,7 @@ Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
 (* Boxes *)
 
 Proc /: MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
-    label = procLabel[p] /. "Transpose"[l_] :> Transpose[l]
+    label = procLabel[p]
 },
     ToBoxes[
         Tooltip[

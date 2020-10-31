@@ -1,5 +1,6 @@
 Package["DiagramProcess`"]
 
+PackageExport["withTerminals"]
 PackageExport["topologicalProcQ"]
 PackageExport["unlabeledProcQ"]
 PackageExport["zeroProc"]
@@ -15,9 +16,21 @@ PackageExport["sumProc"]
 PackageExport["uncurryProc"]
 PackageExport["curryProc"]
 PackageExport["discardProc"]
+PackageExport["maximallyMixedProc"]
+PackageExport["procBasis"]
+PackageExport["spiderProc"]
+PackageExport["xSpiderProc"]
+PackageExport["zSpiderProc"]
 
-PackageExport["withTerminals"]
 
+withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
+   q,
+   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"initial"}, Unique["initial"]],
+   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, {"terminal"}, Unique["terminal"]]
+},
+    q = If[Length @ out > 0, terminal @* p, p];
+    flattenProc @ If[Length[in] > 0, q @* initial, q]
+]
 
 
 topologicalProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" | "copy" | "initial" | "terminal"]
@@ -63,20 +76,24 @@ copyProc[in_, n_ : 2] := Proc[Labeled[{#, #} &, "\[Gamma]"], {SystemType[in]}, T
 sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
 
 
-uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, Heads -> True] &, "uncurry"], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts, {"uncurry"}, Unique["uncurry"]]
+uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, {1}, Heads -> True] &, "uncurry"], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts, {"uncurry"}, Unique["uncurry"]]
 
 
-curryProc[ts_List] := Proc[Labeled[Apply[CircleTimes], "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
+curryProc[ts_List] := Proc[Labeled[CircleTimes, "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
 
 
 discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
 
 
-withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
-   q,
-   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"initial"}, Unique["initial"]],
-   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, {"terminal"}, Unique["terminal"]]
-},
-    q = If[Length @ out > 0, terminal @* p, p];
-    flattenProc @ If[Length[in] > 0, q @* initial, q]
-]
+maximallyMixedProc[t_] := mapProcLabel["mix" &, transposeProc @ discardProc[t]]
+
+
+procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
+
+
+spiderProc[x_, t_, n_Integer, m_Integer] := Proc[Labeled["Spider", x], Table[SystemType[t], n], Table[SystemType[t], m], {"spider"}, Unique["spider"]]
+
+
+xSpiderProc[args__] := spiderProc[args]
+
+zSpiderProc[args__] := setProcTag[spiderProc[args], "shaded"]
