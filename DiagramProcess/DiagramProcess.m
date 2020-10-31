@@ -5,7 +5,7 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = Join[{"Simplify" -> False, "Double" -> False}, Options[ProcGraph]]
+Options[DiagramProcess] = {"Simplify" -> False, "Double" -> False}
 
 
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
@@ -61,12 +61,17 @@ DiagramProcess["Curry", as_List, opts : OptionsPattern[]] :=
 DiagramProcess["Discard", a_, opts : OptionsPattern[]] :=
     DiagramProcess[discardProc[a], opts]
 
+DiagramProcess["XSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[xSpiderProc[phase, t, n, m], opts]
+
+DiagramProcess["ZSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[zSpiderProc[Style[phase, Bold], t, n, m], opts]
+
+
 DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]
 
 DiagramProcess[HoldPattern[Sum[f : Except[_Proc], i_]], opts : OptionsPattern[]] := DiagramProcess[Sum[Proc[f], i], opts]
 
 
-DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List | _String], opts : OptionsPattern[]] :=
+DiagramProcess[expr : Except[_DiagramProcess | _Proc | _List | _String | _Graph], opts : OptionsPattern[]] :=
     DiagramProcess[Proc[expr], opts]
 
 
@@ -98,6 +103,9 @@ DiagramProcess /: Equal[a_DiagramProcess, b_DiagramProcess] := ContainsExactly[
     EdgeList @ simplifyProcGraph[a["Diagram"]],
     EdgeList @ simplifyProcGraph[b["Diagram"]]
 ]
+
+
+DiagramProcess[g_Graph, opts : OptionsPattern[]] /; AllTrue[VertexList[g], MatchQ[_Proc]] := DiagramProcess[GraphProc[g], opts]
 
 
 DiagramProcess /: MakeBoxes[d : DiagramProcess[_, opts : OptionsPattern[]], form_] := Module[{
