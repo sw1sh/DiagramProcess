@@ -82,7 +82,7 @@ uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, {1}, Heads 
 curryProc[ts_List] := Proc[Labeled[CircleTimes, "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
 
 
-discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
+discardProc[t_] := Proc[Labeled[{} &, "discard"], {SystemType[t]}, {}, {"discard"}, Unique["discard"]]
 
 
 maximallyMixedProc[t_] := mapProcLabel["mix" &, transposeProc @ discardProc[t]]

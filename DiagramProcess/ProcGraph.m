@@ -190,17 +190,27 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
 
                 procTagQ[p, "discard"],
                 With[{rotated = procRotatedQ[p]},
-                Function[{coord, v, size}, If[rotated, {
+                Function[{coord, v, size}, {
+                If[rotated, {
                     Black,
-                    Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, size[[2]] / 2},
+                    Wire[coord + {0, size[[2]] / 2},
+                         coord, "", "ArrowSize" -> 0]
+                    (*Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, size[[2]] / 2},
                          coord + {edgeSideShift[2, {1, 1}, 2] * productWidth, size[[2]] / 2}, "",
-                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "DownArc"]
+                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "DownArc"]*)
                 }, {
                     Black,
-                    Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, - size[[2]] / 2},
+                    Wire[coord + {0, - size[[2]] / 2},
+                         coord, "", "ArrowSize" -> 0]
+                    (*Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, - size[[2]] / 2},
                          coord + {edgeSideShift[2, {1, 1}, 2] * productWidth, - size[[2]] / 2}, "",
-                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "UpArc"]
-                }]]
+                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "UpArc"]*)
+                }],
+                Black, Thick,
+                Line[{coord + {- size[[1]] / 2, 0}, coord + {size[[1]] / 2, 0}}],
+                Line[{coord + {- size[[1]] / 4, size[[2]] / 4}, coord + {size[[1]] / 4, size[[2]] / 4}}],
+                Line[{coord + {- size[[1]] / 8, size[[2]] / 2}, coord + {size[[1]] / 8, size[[2]] / 2}}]
+                }]
                 ],
 
                 True,
@@ -208,7 +218,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
             ]];
             If[ procTagQ[p, "double"],
                 With[{fun = shapeFun},
-                    shapeFun = {EdgeForm[{Black, Opacity[1], Thickness[0.04]}], fun[##]} &
+                    shapeFun = {EdgeForm[{Black, Opacity[1], Thick}], fun[##]} &
                 ]
             ];
             With[{fun = shapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1}, {1, 1}]},
