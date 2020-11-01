@@ -27,6 +27,11 @@ SystemType[t_SystemType] := t
 SystemType[SystemType[t_, ___], args__] := SystemType[t, args]
 
 
+typeLabel[type : SystemType[t_, ___]] := If[dualTypeQ[type], SuperStar[getLabel[t]], getLabel[t]]
+
+typeLabel[SystemType[Defer[CircleTimes[t_SystemType, t_SystemType]], ___]] := OverHat[typeLabel[t]]
+
+
 dualTypeQ[SystemType[_, opts : OptionsPattern[]]] :=
     TrueQ[OptionValue[SystemType, opts, "Dual"]]
 
@@ -36,26 +41,24 @@ dualType[SystemType[t : Except[_Defer], opts : OptionsPattern[SystemType]]] :=
       "Dual" -> Not[OptionValue[SystemType, opts, "Dual"]],
       Sequence @@ FilterRules[opts, Except["Dual"]]]
 
-dualType[SystemType[Defer[CircleTimes[ts__]], ___]] := Apply[CircleTimes, dualType /@ {ts}]
+dualType[SystemType[Defer[CircleTimes[ts__]] | Labeled[Defer[CircleTimes[ts__]], _], ___]] := Apply[CircleTimes, dualType /@ {ts}]
 
 
 typeArity[_SystemType] := 1
 
-typeArity[SystemType[Defer[CircleTimes[ts__]], ___]] := Total[typeArity /@ {ts}]
+typeArity[SystemType[Defer[CircleTimes[ts__]] | Labeled[Defer[CircleTimes[ts__]], _], ___]] := Total[typeArity /@ {ts}]
 
 
-dualTypesQ[SystemType[Defer[CircleTimes[ts__]], ___]] := dualTypeQ /@ {ts}
+dualTypesQ[SystemType[Defer[CircleTimes[ts__]] | Labeled[Defer[CircleTimes[ts__]], _], ___]] := dualTypeQ /@ {ts}
 
 dualTypesQ[t_SystemType] := {dualTypeQ[t]}
 
 
 (* Boxes *)
-MakeBoxes[type : SystemType[t_, opts : OptionsPattern[]], form_] :=
-    With[{dualQ = dualTypeQ[type]},
-        ToBoxes[
-            Tooltip[
-                If[dualQ, SuperStar[t], t],
-                Row[{t, ":", If[dualQ, SuperStar["Type"], "Type"]}]
-            ],
-        form]
-    ]
+MakeBoxes[type : SystemType[_, OptionsPattern[]], form_] :=
+    ToBoxes[
+        Tooltip[
+            typeLabel[type],
+            Row[{typeLabel[type], ":", If[dualTypeQ[type], SuperStar["Type"], "Type"]}]
+        ],
+    form]
