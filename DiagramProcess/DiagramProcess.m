@@ -64,9 +64,9 @@ DiagramProcess["Curry", as_List, opts : OptionsPattern[]] :=
 DiagramProcess["Discard", a_, opts : OptionsPattern[]] :=
     DiagramProcess[discardProc[a], opts]
 
-DiagramProcess["XSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[xSpiderProc[phase, t, n, m], opts]
+DiagramProcess["XSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[xSpiderProc[Style[phase, Bold], t, n, m], opts]
 
-DiagramProcess["ZSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[zSpiderProc[Style[phase, Bold], t, n, m], opts]
+DiagramProcess["ZSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[zSpiderProc[phase, t, n, m], opts]
 
 
 DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]

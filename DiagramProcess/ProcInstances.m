@@ -94,6 +94,6 @@ procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
 spiderProc[x_, t_, n_Integer, m_Integer] := Proc[Labeled["Spider", x], Table[SystemType[t], n], Table[SystemType[t], m], {"spider"}, Unique["spider"]]
 
 
-xSpiderProc[args__] := spiderProc[args]
+xSpiderProc[args__] := setProcTag[spiderProc[args], "shaded"]
 
-zSpiderProc[args__] := setProcTag[spiderProc[args], "shaded"]
+zSpiderProc[args__] := spiderProc[args]
