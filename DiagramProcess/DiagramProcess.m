@@ -5,13 +5,16 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = {"Simplify" -> False, "Double" -> False}
+Options[DiagramProcess] = {"Simplify" -> False, "Double" -> None}
 
 
 DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
 
 
-DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[TrueQ[OptionValue["Double"]], doubleProc @ p, unDoubleProc @ p]
+DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[OptionValue["Double"] === None,
+    p,
+    If[TrueQ[OptionValue["Double"]], doubleProc @ p, unDoubleProc @ p]
+]
 
 
 (d : DiagramProcess[_, opts : OptionsPattern[]])["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
