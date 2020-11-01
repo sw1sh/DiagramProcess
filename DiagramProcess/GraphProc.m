@@ -45,8 +45,8 @@ uniqueTypes[g_Graph] := Module[{
     rules
 },
     If[VertexCount[g] == 0, Return[{g, {}}]];
-    {newGraph, replacements} = Reap @ vertexMap[ReplaceAll[
-        t_SystemType :> With[{unique = SystemType[Unique[]]}, Sow[t -> unique]; unique]
+    {newGraph, replacements} = Reap @ vertexMap[replaceUnderHold[
+        (t : SystemType[Except[_Defer], ___]) :> With[{unique = SystemType[Unique[]]}, Sow[t -> unique]; unique]
         ],
         g
     ];
