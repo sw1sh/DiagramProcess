@@ -33,12 +33,13 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
         vertexSize = vertexSize {1, 0}
     ];
     If[ procTagQ[p, "composite"],
-        graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False, opts];
+        graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False,
+            "ComposeDistance" -> 0, "ParallelComposeDistance" -> 0, opts];
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph]
     ];
     If[ procTagQ[p, "spider"],
-        vertexSize = {1 / 2, 1 / 2};
+        vertexSize = If[ procTagQ[p, "topological"], {1 / 8, 1 / 8}, {1 / 2, 1 / 2}]
     ];
     vertexLabel = If[TrueQ[OptionValue["ShowProcessLabels"]] && ! procTagQ[p, "composite"], stripProcSupers @ procLabel[p], ""];
     Graph[{Annotation[p, {
@@ -63,8 +64,8 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         "None",
                         procTagQ[p, "spider"],
                         "Disk",
-                        procTagQ[p, "composite"],
-                        "Rectangle",
+                        (*procTagQ[p, "composite"],
+                        "Rectangle",*)
                         procArity[q] == 0,
                         "Diamond",
                         procInArity[q] == 0,
@@ -165,7 +166,9 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ]]
                 ],
 
-                procTagQ[p, "copy" | "uncurry"],
+                procTagQ[p, "curry"],
+                With[{rotated = procRotatedQ[p]},
+                If[rotated,
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -174,10 +177,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                              "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
                         {i, 2}
                     ]
-                }]
-                ,
-
-                procTagQ[p, "curry"],
+                }],
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -186,7 +186,9 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                              "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
                         {i, 2}
                     ]
-                }],
+                }]
+                ]]
+                ,
 
                 procTagQ[p, "discard"],
                 With[{rotated = procRotatedQ[p]},
@@ -221,12 +223,12 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                     shapeFun = {EdgeForm[{Black, Opacity[1], Thick}], fun[##]} &
                 ]
             ];
-            With[{fun = shapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1}, {1, 1}]},
+            With[{fun = shapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1.25}, {1, 1}]},
                 If[ TrueQ[OptionValue["OutlineProcess"]],
                     shapeFun = Function[{
                         fun[##],
                         FaceForm[Transparent], EdgeForm[Dashed],
-                        GeometricTransformation[outlineShapeFun[##], ScalingTransform[scale, vertexCoords]]
+                        GeometricTransformation[outlineShapeFun[##], ScalingTransform[scale, #1]]
                     }]
                 ]
             ];
