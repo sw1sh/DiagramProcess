@@ -33,40 +33,9 @@ DiagramProcess[d_DiagramProcess, args___] := DiagramProcess[d["Process"], args]
 DiagramProcess[boxNames_List, opts : OptionsPattern[]] := DiagramProcess[boxNamesProc[boxNames], opts]
 
 
-DiagramProcess["Zero", opts : OptionsPattern[]] := DiagramProcess[zeroProc[], opts]
+DiagramProcess[name_String, opts : OptionsPattern[]] := DiagramProcess[Proc[name], opts]
 
-DiagramProcess["Empty", opts : OptionsPattern[]] := DiagramProcess[emptyProc[], opts]
-
-DiagramProcess["Identity" | "Id" | "\[Delta]", a_, opts : OptionsPattern[]] :=
-    DiagramProcess[identityProc[a], opts]
-
-DiagramProcess["Cap" | "\[Intersection]" | "\[Cap]", a_, opts : OptionsPattern[]] :=
-    DiagramProcess[capProc[a], opts]
-
-DiagramProcess["Cup" | "\[Union]" | "\[Cup]", a_, opts : OptionsPattern[]] :=
-    DiagramProcess[cupProc[a], opts]
-
-DiagramProcess["Permutation", perm_Cycles, in_List, opts : OptionsPattern[]] :=
-    DiagramProcess[permutationProc[perm, in], opts]
-
-DiagramProcess["Swap", a_, b_, opts : OptionsPattern[]] :=
-    DiagramProcess[swapProc[a, b], opts]
-
-DiagramProcess["Copy", a_, opts : OptionsPattern[]] :=
-    DiagramProcess[copyProc[a], opts]
-
-DiagramProcess["Uncurry", as_List, opts : OptionsPattern[]] :=
-    DiagramProcess[uncurryProc[as], opts]
-
-DiagramProcess["Curry", as_List, opts : OptionsPattern[]] :=
-    DiagramProcess[curryProc[as], opts]
-
-DiagramProcess["Discard", a_, opts : OptionsPattern[]] :=
-    DiagramProcess[discardProc[a], opts]
-
-DiagramProcess["XSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[xSpiderProc[Style[phase, Bold], t, n, m], opts]
-
-DiagramProcess["ZSpider", phase_, n_, m_, t_, opts : OptionsPattern[]] := DiagramProcess[zSpiderProc[phase, t, n, m], opts]
+DiagramProcess[name_String[args___], opts : OptionsPattern[]] := DiagramProcess[Proc[name[args]], opts]
 
 
 DiagramProcess[fs : HoldPattern[Plus[Except[_Proc] ..]], opts : OptionsPattern[]] := DiagramProcess[Map[Proc, fs], opts]
