@@ -17,7 +17,6 @@ PackageExport["unDoubleProc"]
 PackageScope["mapProcLabel"]
 PackageScope["setProcTag"]
 PackageScope["unsetProcTag"]
-PackageScope["setProcData"]
 
 PackageScope["procRotatedQ"]
 PackageScope["compatibleProcsQ"]
@@ -50,12 +49,6 @@ setProcTag[p_Proc, tag_] := If[procTagQ[p, tag], p, MapAt[Append[tag], p, {4}]]
 setProcTag[p_Proc, tags_List] := Fold[setProcTag, p, tags]
 
 
-procData[p_Proc] :=  If[Length[p] > 4, p[[5]], procLabel[p]]
-
-
-setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Append[p, data]]
-
-
 procRotatedQ[p_Proc] := Apply[Xor, procTagQ[p, #] & /@ {"transpose", "algebraic transpose", "adjoint"}]
 
 
@@ -86,9 +79,9 @@ adjointProc[p : Proc[_, in_, out_, ___]] :=
 conjugateProc[p_Proc] := replaceUnderHold[transposeProc[adjointProc[p]], Transpose[SuperDagger[l_]] :> OverBar[l]]
 
 
-compositeProc[p_Proc] := setProcTag[p, "composite"]
+compositeProc[p_Proc, label_] := mapProcLabel[label &, setProcTag[p, "composite"]]
 
-compositeProc[p_Proc, label_] := mapProcLabel[label &, compositeProc[p]]
+compositeProc[p_Proc] := compositeProc[p, procLabel[p]]
 
 compositeProc[p_Proc, label_, data_] := setProcData[compositeProc[p, label], data]
 
@@ -204,7 +197,7 @@ procToEffect[p_Proc] := With[{caps = capProc /@ p[[3]]}, Fold[
 compatibleProcsQ[ps__Proc] := Equal @@ Map[#[[2]] &, {ps}] && Equal @@ Map[#[[3]] &, {ps}]
 
 
-unProc[p_Proc] := unLabelAll[p //. Proc[op_, __] :> op /. Defer -> Identity]
+unProc[p_Proc] := unLabelAll[p //. Proc[op_, __] :> op /. Defer[x_] :> x]
 
 
 procInArity[Proc[_, in_, ___]] := Length[in]

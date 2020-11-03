@@ -8,6 +8,8 @@ PackageScope["procOutput"]
 PackageScope["procTags"]
 PackageScope["procLabel"]
 PackageScope["procTagQ"]
+PackageScope["procData"]
+PackageScope["setProcData"]
 
 
 Options[Proc] = {};
@@ -128,12 +130,18 @@ procTagQ[p_Proc, patt_] := AnyTrue[procTags[p], MatchQ[patt]]
 procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 
 
+procData[p_Proc] :=  If[Length[p] > 4, p[[5]], procLabel[p]]
+
+
+setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Append[p, data]]
+
+
 (* Eval Proc *)
 
 Proc::typeSizeMissmatch =
     "Number of inputs `1` doesn't match number of outputs `2`. Padding with Missing[]";
 
-Proc[Labeled[Defer[q_], _], ___][x___] := q[x]
+(*Proc[Labeled[Defer[q_], _], ___][x___] := q[x]*)
 
 Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
   q = Proc[Defer[Composition[ps]], in, p[[2]], args]
@@ -163,16 +171,16 @@ Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
 (* Boxes *)
 
 Proc /: MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
-    label = procLabel[p]
-},
-    ToBoxes[
-        Tooltip[
-            Underoverscript[
-                If[ MatchQ[label, _SmallCircle | _CircleTimes | _Plus], Row[{"(", label, ")"}], label],
-                Row @ A, Row @ B
-            ],
-        Row[{"Proc", ":", If[Length[A] == 0, "*", Splice @ A], "\[Rule]", If[Length[B] == 0, "*", Splice @ B]}]
+    boxes =
+        UnderoverscriptBox[
+            If[ MatchQ[procLabel[p], _SmallCircle | _CircleTimes | _Plus], RowBox[{"(", ToBoxes @ procLabel[p], ")"}], ToBoxes @ procLabel[p]],
+            ToBoxes @ Row @ A, ToBoxes @ Row @ B
         ],
-        TraditionalForm
+    tooltip = ToBoxes[Row[{"Proc", ":", If[Length[A] == 0, "*", Splice @ A], "\[Rule]", If[Length[B] == 0, "*", Splice @ B]}], form]
+},
+    InterpretationBox[
+        boxes,
+        p,
+        Tooltip -> tooltip
     ]
 ]
