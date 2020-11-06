@@ -27,7 +27,7 @@ PackageScope["encodeProc"]
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
    q,
-   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"initial", "topological"}, Unique["initial"]],
+   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"terminal", "topological"}, Unique["initial"]],
    terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, {"terminal", "topological"}, Unique["terminal"]]
 },
     q = If[Length @ out > 0, terminal @* p, p];
@@ -38,8 +38,8 @@ withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
 topologicalProcQ[p_Proc] := procTagQ[p, "topological"]
 
 
-unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" | "cap" |
-    "copy" | "initial" | "terminal" | "curry" | "uncurry" | "discard"] || procTagQ[p, {"spider", "topological"}]
+unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | "cup" |
+    "copy" | "terminal" | "curry" | "discard"] || procTagQ[p, {"spider", "topological"}]
 
 
 emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, {"empty"}]
@@ -81,11 +81,10 @@ matchProc[args__] := adjointProc[copyProc[args]]
 sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
 
 
-uncurryProc[ts_List] := Proc[Labeled[Replace[#, CircleTimes -> List, {1}, Heads -> True] &, "uncurry"], {Apply[CircleTimes, SystemType /@ ts]}, SystemType /@ ts,
-    {"curry", "adjoint"}, Unique["uncurry"]]
+uncurryProc[ts__] := algebraicTransposeProc[curryProc[ts]]
 
 
-curryProc[ts_List] := Proc[Labeled[CircleTimes, "curry"], SystemType /@ ts, {Apply[CircleTimes, SystemType /@ ts]}, {"curry"}, Unique["curry"]]
+curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[CircleTimes, SystemType /@ {ts}]}, {"curry", "topological"}, Unique["curry"]]
 
 
 discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
@@ -97,12 +96,14 @@ maximallyMixedProc[t_] := mapProcLabel["mix" &, transposeProc @ discardProc[t]]
 procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
 
 
-spiderProc[x_, t_, n_Integer, m_Integer] := Proc[Labeled["Spider", x], Table[SystemType[t], n], Table[SystemType[t], m], {"spider"}, Unique["spider"]]
+spiderProc[n_Integer, m_Integer, t_] := Proc["\[EmptyCircle]", Table[SystemType[t], n], Table[SystemType[t], m], {"spider", "topological"}, Unique["spider"]]
+
+spiderProc[x_, n_Integer, m_Integer, t_] := mapProcLabel[x &, spiderProc[n, m, t]]
 
 
-xSpiderProc[args__] := setProcTag[spiderProc[args], "shaded"]
+zSpiderProc[args__] := setProcTag[unsetProcTag[spiderProc[args], "topological"], "phased"]
 
-zSpiderProc[args__] := spiderProc[args]
+xSpiderProc[args__] := setProcTag[zSpiderProc[args], "shaded"]
 
 
 measureProc[t_] := Proc["Measure", {CircleTimes[SystemType[t], SystemType[t]]}, {SystemType[t]}, {"spider", "topological"}, Unique["measure"]]
@@ -135,15 +136,17 @@ Proc["Copy"[a_]] := copyProc[a]
 
 Proc["Match"[a_]] := matchProc[a]
 
-Proc["Uncurry"[as_List]] := uncurryProc[as]
+Proc["Uncurry"[as__]] := uncurryProc[as]
 
-Proc["Curry"[as_List]] := curryProc[as]
+Proc["Curry"[as__]] := curryProc[as]
 
 Proc["Discard"[a_]] := discardProc[a]
 
-Proc["XSpider"[phase_, n_, m_, t_]] := xSpiderProc[Style[phase, Bold], t, n, m]
+Proc["Spider"[n_, m_, t_]] := spiderProc[n, m, t]
 
-Proc["ZSpider"[phase_, n_, m_, t_]] := zSpiderProc[phase, t, n, m]
+Proc["XSpider"[phase_, n_, m_, t_]] := xSpiderProc[Style[phase, Bold], n, m, t]
+
+Proc["ZSpider"[phase_, n_, m_, t_]] := zSpiderProc[phase, n, m, t]
 
 Proc["Measure"[a_]] := measureProc[a]
 

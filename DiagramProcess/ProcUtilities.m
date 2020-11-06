@@ -72,7 +72,7 @@ algebraicTransposeProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @
 algebraicTransposeProc[Proc[Defer[CircleTimes[ps__Proc]], ___]] := CircleTimes @@ Reverse[algebraicTransposeProc /@ {ps}]
 
 algebraicTransposeProc[p : Proc[_, in_, out_, ___]] :=
-    setProcTag[ReplacePart[mapProcLabel[Transpose, p], {2 -> Map[dualType, out], 3 -> Map[dualType, in]}], "algebraic transpose"]
+    setProcTag[ReplacePart[mapProcLabel[Transpose, p], {2 -> out, 3 -> in}], "algebraic transpose"]
 
 
 adjointProc[Proc[Defer[Composition[ps__Proc]], ___]] := Composition @@ Reverse[adjointProc /@ {ps}]
@@ -93,7 +93,7 @@ compositeProc[p_Proc] := compositeProc[p, procLabel[p]]
 compositeProc[p_Proc, label_, data_] := setProcData[compositeProc[p, label], data]
 
 
-stripComposites[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "composite"] :> unsetTagProc[q, "composite"]]
+stripComposites[p_Proc] := replaceUnderHold[p, q_Proc /; procTagQ[q, "composite"] :> MapAt[First, unsetProcTag[q, "composite"], {1}]]
 
 
 doublePermutation[n_Integer] := FindPermutation[Catenate @ Thread[{Reverse[Range[n]], Range[n + 1, 2 n]}]]
@@ -110,7 +110,7 @@ doubleProc[p_Proc] := Module[{
             If[! OrderedQ[PermutationList[perm]],
                 q = pi @* q;
             ];
-            q = Apply[CircleTimes, curryProc /@ Partition[procOutput[pi], 2]] @* q
+            q = Apply[CircleTimes, Apply[curryProc] /@ Partition[procOutput[pi], 2]] @* q
         ]
     ];
     If[ Length[procInput[q]] > 0,
@@ -119,7 +119,7 @@ doubleProc[p_Proc] := Module[{
             If[! OrderedQ[PermutationList[perm]],
                 q = q @* pi
             ];
-            q = q @* Apply[CircleTimes, uncurryProc /@ Partition[procInput[pi], 2]]
+            q = q @* Apply[CircleTimes, Apply[uncurryProc] /@ Partition[procInput[pi], 2]]
         ];
 
     ];
