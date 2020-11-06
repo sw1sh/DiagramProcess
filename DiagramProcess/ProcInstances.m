@@ -72,16 +72,16 @@ cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out
 capProc[in_] := mapProcLabel["\[Intersection]" &, transposeProc @ cupProc[in]]
 
 
-copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "\[Gamma]"], {SystemType[in]}, Table[SystemType[in], n], {"spider", "topological"}, Unique["copy"]]
+copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "copy"], {SystemType[in]}, Table[SystemType[in], n], {"spider", "topological"}, Unique["copy"]]
 
 
-matchProc[args__] := adjointProc[copyProc[args]]
+matchProc[args__] := mapProcLabel["match" &, algebraicTransposeProc[copyProc[args]]]
 
 
 sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
 
 
-uncurryProc[ts__] := algebraicTransposeProc[curryProc[ts]]
+uncurryProc[ts__] := mapProcLabel["uncurry" &, algebraicTransposeProc[curryProc[ts]]]
 
 
 curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[CircleTimes, SystemType /@ {ts}]}, {"curry", "topological"}, Unique["curry"]]
@@ -90,7 +90,7 @@ curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[Circl
 discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
 
 
-maximallyMixedProc[t_] := mapProcLabel["mix" &, transposeProc @ discardProc[t]]
+maximallyMixedProc[t_] := mapProcLabel["mix" &, algebraicTransposeProc @ discardProc[t]]
 
 
 procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
@@ -141,6 +141,8 @@ Proc["Uncurry"[as__]] := uncurryProc[as]
 Proc["Curry"[as__]] := curryProc[as]
 
 Proc["Discard"[a_]] := discardProc[a]
+
+Proc["MaximallyMixed"[a_]] := maximallyMixedProc[a]
 
 Proc["Spider"[n_, m_, t_]] := spiderProc[n, m, t]
 

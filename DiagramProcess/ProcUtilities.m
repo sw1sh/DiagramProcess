@@ -4,6 +4,7 @@ PackageExport["transposeProc"]
 PackageExport["algebraicTransposeProc"]
 PackageExport["adjointProc"]
 PackageExport["conjugateProc"]
+PackageExport["algebraicConjugateProc"]
 PackageExport["stripProcSupers"]
 PackageExport["flattenProc"]
 PackageExport["traceProc"]
@@ -84,6 +85,9 @@ adjointProc[p : Proc[_, in_, out_, ___]] :=
 
 
 conjugateProc[p_Proc] := replaceUnderHold[transposeProc[adjointProc[p]], Transpose[SuperDagger[l_]] :> OverBar[l]]
+
+
+algebraicConjugateProc[p_Proc] := replaceUnderHold[algebraicTransposeProc[adjointProc[p]], Transpose[SuperDagger[l_]] :> OverBar[l]]
 
 
 compositeProc[p_Proc, label_] := mapProcLabel[label &, setProcTag[p, "composite"]]

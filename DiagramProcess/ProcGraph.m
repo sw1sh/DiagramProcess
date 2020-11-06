@@ -20,10 +20,24 @@ Options[ProcGraph] = {
 
 
 ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := Module[{
-    vertexSize, vertexCoords, vertexLabel, graph = None, shapeFun, outlineShapeFun
+    q, vertexSize, vertexCoords, vertexLabel, graph = None, shapeFun, outlineShapeFun
 },
     If[TrueQ[OptionValue["AddTerminals"]],
-        Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
+        Return @ ProcGraph[withTerminals[q], "AddTerminals" -> False, opts]
+    ];
+    q = Which[
+        procTagQ[p, {"transpose", "adjoint"}],
+        conjugateProc[p],
+        procTagQ[p, {"algebraic transpose", "adjoint"}],
+        algebraicConjugateProc[p],
+        procTagQ[p, "transpose"],
+        transposeProc[p],
+        procTagQ[p, "algebraic transpose"],
+        algebraicTransposeProc[p],
+        procTagQ[p, "adjoint"],
+        adjointProc[p],
+        True,
+        p
     ];
     vertexCoords = {0, 0};
     vertexSize = MapAt[Min[Replace[#, Automatic -> 1], 1] & ,
@@ -51,49 +65,23 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 inArity = Length[in], outArity = Length[out],
                 productWidth = OptionValue["ProductWidth"] /. Automatic -> 1 / 10,
                 arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
-                shape = With[{q = Which[
-                    procTagQ[p, {"transpose", "adjoint"}],
-                    conjugateProc[p],
-                    procTagQ[p, "transpose"],
-                    transposeProc[p],
-                    procTagQ[p, "adjoint"],
-                    adjointProc[p],
+                shape = Which[
+                    procTagQ[q, "zero"],
+                    "None",
+                    procTagQ[q, "spider"],
+                    "Disk",
+                    procArity[q] == 0,
+                    "Diamond",
+                    procInArity[q] == 0,
+                    "DownTriangle",
+                    procOutArity[q] == 0,
+                    "UpTriangle",
                     True,
-                    p
-                ]},
-                    Which[
-                        procTagQ[p, "zero"],
-                        "None",
-                        procTagQ[p, "spider"],
-                        "Disk",
-                        (*procTagQ[p, "composite"],
-                        "Rectangle",*)
-                        procArity[q] == 0,
-                        "Diamond",
-                        procInArity[q] == 0,
-                        "DownTriangle",
-                        procOutArity[q] == 0,
-                        "UpTriangle",
-                        True,
-                        "Trapezoid"
-                    ]
+                    "Trapezoid"
                 ],
-                posScale = With[{size = vertexSize}, If[procTagQ[p, "spider"], #1 + Normalize[#2] size, #1 + #2] &]
+                posScale = With[{size = vertexSize}, If[procTagQ[q, "spider"], #1 + Normalize[#2] size, #1 + #2] &]
         },
             outlineShapeFun = procShape[#1, #3[[1]], #3[[2]], "Shape" -> shape] &;
-
-            With[{fun = outlineShapeFun},
-                outlineShapeFun = Which[
-                    procTagQ[p, {"transpose", "adjoint"}],
-                    GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
-                    procTagQ[p, "transpose"],
-                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
-                    procTagQ[p, "adjoint"],
-                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
-                    True,
-                    fun
-                ]
-            ];
 
             shapeFun = If[procTagQ[p, "composite"],
                 With[{graphics = First[GraphPlot[graph]]},
@@ -161,25 +149,17 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ],
 
                 procTagQ[p, "cup"],
-                With[{rotated = procRotatedQ[p], arity = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]], double = procTagQ[p, "double"]},
+                With[{arity = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]], double = procTagQ[p, "double"]},
                 With[{multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity],
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, Thickness[Large], Thickness[Medium]]},
-                Function[{coord, v, size}, If[rotated, {
-                    Black,
-                    Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2},
-                         coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
-                         "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "UpArc",
-                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
-                         "Reverse" -> double, "Style" -> style]
-                }, {
+                Function[{coord, v, size}, {
                     Black,
                     Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2},
                          coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
                          "Multiply" -> multiplicity, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
                          "Reverse" -> double, "Style" -> style]
-                }
-                ]]
+                }]
                 ]],
 
                 procTagQ[p, "curry"],
@@ -195,45 +175,20 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ,
 
                 procTagQ[p, "discard"],
-                With[{rotated = procRotatedQ[p]},
                 Function[{coord, v, size}, {
-                If[rotated, {
-                    Black,
-                    Wire[coord + {0, size[[2]] / 2},
-                         coord, "", "ArrowSize" -> 0]
-                    (*Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, size[[2]] / 2},
-                         coord + {edgeSideShift[2, {1, 1}, 2] * productWidth, size[[2]] / 2}, "",
-                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "DownArc"]*)
-                }, {
                     Black,
                     Wire[coord + {0, - size[[2]] / 2},
-                         coord, "", "ArrowSize" -> 0]
-                    (*Wire[coord + {edgeSideShift[1, {1, 1}, 2] * productWidth, - size[[2]] / 2},
-                         coord + {edgeSideShift[2, {1, 1}, 2] * productWidth, - size[[2]] / 2}, "",
-                        "VerticalShift" -> size[[2]] / 2, "ArrowSize" -> 0, "Direction" -> "UpArc"]*)
-                }],
-                Black, Thick,
-                Line[{coord + {- size[[1]] / 2, 0}, coord + {size[[1]] / 2, 0}}],
-                Line[{coord + {- size[[1]] / 4, size[[2]] / 4}, coord + {size[[1]] / 4, size[[2]] / 4}}],
-                Line[{coord + {- size[[1]] / 8, size[[2]] / 2}, coord + {size[[1]] / 8, size[[2]] / 2}}]
+                         coord, "", "ArrowSize" -> 0],
+                    Thick,
+                    Line[{coord + {- size[[1]] / 2, 0}, coord + {size[[1]] / 2, 0}}],
+                    Line[{coord + {- size[[1]] / 4, size[[2]] / 4}, coord + {size[[1]] / 4, size[[2]] / 4}}],
+                    Line[{coord + {- size[[1]] / 8, size[[2]] / 2}, coord + {size[[1]] / 8, size[[2]] / 2}}]
                 }]
-                ],
+                ,
 
                 True,
                 outlineShapeFun
             ]];
-            With[{fun = shapeFun},
-                shapeFun = Which[
-                    procTagQ[p, {"transpose", "adjoint"}] || procTagQ[p, {"algebraic transpose", "adjoint"}],
-                    GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
-                    procTagQ[p, "transpose" | "algebraic transpose"],
-                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
-                    procTagQ[p, "adjoint"],
-                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
-                    True,
-                    fun
-                ]
-            ];
             If[ procTagQ[p, "double"],
                 With[{fun = shapeFun},
                     shapeFun = {EdgeForm[{Black, Opacity[1], Thick}], fun[##]} &
@@ -246,6 +201,18 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         FaceForm[Transparent], EdgeForm[Dashed],
                         GeometricTransformation[outlineShapeFun[##], ScalingTransform[scale, #1]]
                     }]
+                ]
+            ];
+            With[{fun = shapeFun},
+                shapeFun = Which[
+                    procTagQ[p, {"transpose", "adjoint"}] || procTagQ[p, {"algebraic transpose", "adjoint"}],
+                    GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
+                    procTagQ[p, "transpose" | "algebraic transpose"],
+                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
+                    procTagQ[p, "adjoint"],
+                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
+                    True,
+                    fun
                 ]
             ];
             With[{
