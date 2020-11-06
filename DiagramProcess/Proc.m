@@ -2,7 +2,7 @@ Package["DiagramProcess`"]
 
 PackageExport["Proc"]
 
-PackageScope["procFunc"]
+PackageScope["procInterpretation"]
 PackageScope["procInput"]
 PackageScope["procOutput"]
 PackageScope["procTags"]
@@ -52,7 +52,7 @@ Proc[SuperDagger[f_]] := adjointProc @ Proc[f]
 Proc[OverBar[f_]] := conjugateProc @ Proc[f]
 
 
-Proc[Tr[f_]] := traceProc @ Proc[f]
+Proc[Tr[f_]] := Tr[Proc[f]]
 
 
 Proc[1, {in_}, {out_}, ___] := If[in === out, identityProc[in], castProc[in, out]]
@@ -92,6 +92,9 @@ Proc /: SuperDagger[p_Proc] := adjointProc @ p
 Proc /: OverBar[p_Proc] := conjugateProc @ p
 
 
+Proc /: Tr[p_Proc] := traceProc[p]
+
+
 Proc[p : _Composition | _SmallCircle | _CircleTimes | _Plus] := Map[Proc, p]
 
 Proc[Sum[p_, i_]] := CircleTimes[sumProc[i], Proc[p]]
@@ -102,14 +105,14 @@ Proc[f : Except[_Subsuperscript | _Superscript | _Subscript |
     _CircleTimes | _SmallCircle | _Plus]] := Proc[Subsuperscript[f, {}, {}]]
 
 
-procFunc[Proc[f_, ___]] := Replace[f, Labeled[g_, _] :> g]
+procInterpretation[Proc[f_, ___]] := Replace[f, {Labeled[g_, _] :> g, Interpretation[__, g_] :> g}]
 
 
 procLabel[Proc[Defer[Composition[ps__]], __]] := SmallCircle @@ Map[procLabel, {ps}]
 
 procLabel[Proc[Defer[CircleTimes[ps__]], __]] := CircleTimes @@ Map[procLabel, {ps}]
 
-procLabel[Proc[Defer[Plus[ps__]], __]] := Plus @@ Map[procLabel, {ps}]
+procLabel[Proc[Defer[Plus[ps__]], __]] := Inactive[Plus] @@ Map[procLabel, {ps}]
 
 procLabel[Proc[f_, __]] := getLabel[f]
 
@@ -141,30 +144,30 @@ setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Appen
 Proc::typeSizeMissmatch =
     "Number of inputs `1` doesn't match number of outputs `2`. Padding with Missing[]";
 
-(*Proc[Labeled[Defer[q_], _], ___][x___] := q[x]*)
+Proc[Labeled[Defer[q_], _], ___][x___] := q[x]
 
 Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
   q = Proc[Defer[Composition[ps]], in, p[[2]], args]
 },
-    With[{y = q @@ PadRight[{x}, Length @ in, Missing["Input", procLabel[q]]]},
-      p @@ PadRight[y, Length[p[[2]]], Missing["Output", procLabel[q]]]]
+    With[{y = q @@ PadRight[{x}, procInTypeArity[q], Missing["Input", procLabel[q]]]},
+      p @@ PadRight[y, procOutTypeArity[q], Missing["Output", procLabel[q]]]]
 ]
 
 (p : Proc[Defer[CircleTimes[ps___Proc]], in_, out_, ___])[x___] :=
     Catenate @ Parallelize[MapThread[
       wrap[#1 @@ #2] &, {
         {ps},
-        TakeList[PadRight[{x}, Length @ in, Missing["Input", procLabel[p]]],
-            Length /@ Values[procIn[p]]]
+        TakeList[PadRight[{x}, procInTypeArity[p], Missing["Input", procLabel[p]]],
+            procInTypeArity /@ {ps}]
         }
     ], DistributedContexts -> Automatic]
 
 (p : Proc[Except[Defer[_Composition | _CircleTimes | _Plus]], in_, out_, ___])[x___] := Module[{
   input, output
 },
-    input = PadRight[{x}, Length[in], Missing["Input", procLabel[p]]];
+    input = PadRight[{x}, procInTypeArity[p], Missing["Input", procLabel[p]]];
     output = wrap[unProc[p] @@ input];
-    PadRight[output, Length[out], Missing["Output", procLabel[p]]]
+    PadRight[output, procOutTypeArity[p], Missing["Output", procLabel[p]]]
 ]
 
 

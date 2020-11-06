@@ -33,7 +33,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
         vertexSize = vertexSize {1, 0}
     ];
     If[ procTagQ[p, "composite"],
-        graph = ProcGraph[ReplacePart[p, 1 -> procFunc[p]], "AddTerminals" -> True, "OutlineProcess" -> False,
+        graph = ProcGraph[ReplacePart[p, 1 -> procInterpretation[p]], "AddTerminals" -> True, "OutlineProcess" -> False,
             "ComposeDistance" -> 0, "ParallelComposeDistance" -> 0, opts];
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph]

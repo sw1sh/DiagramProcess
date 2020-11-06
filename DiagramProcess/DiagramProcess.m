@@ -8,7 +8,7 @@ PackageExport["ProcessTrace"]
 Options[DiagramProcess] = {"Simplify" -> False, "Double" -> None}
 
 
-DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph"}
+DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph", "Tensor"}
 
 
 DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[OptionValue["Double"] === None,
@@ -22,6 +22,9 @@ DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[OptionValue["Double"] 
 },
     If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph @ g, g]
 ]
+
+
+d_DiagramProcess["Tensor"] := ProcTensor[d["Process"]]
 
 
 DiagramProcess[p_Proc, ___][x___] := p[x]

@@ -16,6 +16,8 @@ PackageScope["replaceUnderHold"]
 
 getLabel[Labeled[_, l_]] := l
 
+getLabel[Interpretation[l_, __]] := l
+
 getLabel[DirectedEdge[_, _, l_]] := l
 
 getLabel[e : DirectedEdge[_, _]] := e

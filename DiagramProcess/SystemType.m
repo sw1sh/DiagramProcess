@@ -8,11 +8,20 @@ PackageScope["dualType"]
 PackageScope["typeArity"]
 PackageScope["typeDimensions"]
 PackageScope["typeBasis"]
+PackageScope["typeList"]
 
 
 SystemType::usage = "A representation of types for process inputs and outputs"
 
 Options[SystemType] = {"Dual" -> False, "Dimensions" -> {2}, "Field" -> Complexes};
+
+
+SystemType[_, opts : OptionsPattern[]][s_String] /; MemberQ[Keys[Options[SystemType]], s] := OptionValue[SystemType, {opts}, s]
+
+$systemTypeProperties = Join[Keys[Options[SystemType]], {"Arity", "Basis", "Label", "Properties"}]
+
+_SystemType["Properties"] := $systemTypeProperties
+
 
 SystemType[type : Except[_SystemType]] := SystemType[type, Sequence @@ Options[SystemType]]
 
@@ -26,6 +35,9 @@ SystemType /: (t : CircleTimes[ts__SystemType]) := SystemType[Defer[t],
 
 SystemType[SuperStar[type_], opts : OptionsPattern[]] := SuperStar[SystemType[type, opts]]
 
+SystemType[(Power | Superscript | Overscript)[type_, n_Integer], opts : OptionsPattern[]] := SystemType[type, "Dimensions" -> {n},
+    Sequence @@ FilterRules[{opts}, Except["Dimensions"]]]
+
 SystemType /: SuperStar[t_SystemType] := dualType @ t
 
 
@@ -36,9 +48,10 @@ typeLabel[type : SystemType[t_, ___]] := If[dualTypeQ[type], SuperStar[getLabel[
 
 typeLabel[SystemType[Defer[CircleTimes[t_SystemType, t_SystemType]], ___]] := OverHat[typeLabel[t]]
 
+t_SystemType["Label"] := typeLabel[t]
 
-dualTypeQ[SystemType[_, opts : OptionsPattern[]]] :=
-    TrueQ[OptionValue[SystemType, {opts}, "Dual"]]
+
+dualTypeQ[t_SystemType] := TrueQ[t["Dual"]]
 
 
 dualType[SystemType[t : Except[_Defer], opts : OptionsPattern[SystemType]]] :=
@@ -53,27 +66,38 @@ typeArity[_SystemType] := 1
 
 typeArity[SystemType[Defer[CircleTimes[ts__]], ___]] := Total[typeArity /@ {ts}]
 
+t_SystemType["Arity"] := typeArity[t]
+
 
 dualTypesQ[SystemType[Defer[CircleTimes[ts__]], ___]] := dualTypeQ /@ {ts}
 
 dualTypesQ[t_SystemType] := {dualTypeQ[t]}
 
 
-typeDimensions[SystemType[_, opts : OptionsPattern[]]] := OptionValue[SystemType, {opts}, "Dimensions"]
+typeDimensions[t_SystemType] := t["Dimensions"]
 
 
-typeField[SystemType[_, opts : OptionsPattern[]]] := OptionValue[SystemType, {opts}, "Field"]
+typeField[t_SystemType] := t["Field"]
 
 
-typeBasis[t_SystemType] := With[{dims = typeDimensions[t]},
-    SparseArray[{IntegerDigits[#, MixedRadix[dims], Length[dims]] + 1 -> 1}, dims] & /@ Range[0, Times @@ dims - 1]
+typeList[SystemType[Defer[CircleTimes[ts__SystemType]], ___]] := Catenate[typeList /@ {ts}]
+
+typeList[t : SystemType[Except[_Defer], ___]] := {t}
+
+
+typeBasis[t_SystemType, flatten_ : True] := With[{dims = typeDimensions[t]},
+    With[{basis = Array[SparseArray[{{##} -> 1}, dims] &, dims]},
+        If[TrueQ[flatten], Flatten[basis, Length[dims] - 1], basis]
+    ]
 ]
+
+t_SystemType["Basis"] := typeBasis[t]
 
 
 (* Boxes *)
 MakeBoxes[type : SystemType[_, OptionsPattern[]], form_] := With[{
     boxes = ToBoxes[typeLabel[type], form],
-    tooltip = ToBoxes[Superscript[If[dualTypeQ[type], SuperStar[typeField[type]], typeField[type]], CircleTimes @@ typeDimensions[type]], form]
+    tooltip = ToBoxes[unWrap[MapThread[Superscript, {wrap[typeField[type] /. CircleTimes -> List], typeDimensions[type]}]] /. List -> CircleTimes, form]
 },
     InterpretationBox[
         boxes,

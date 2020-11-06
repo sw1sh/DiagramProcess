@@ -24,16 +24,23 @@ PackageScope["composeProcs"]
 PackageScope["procInArity"]
 PackageScope["procOutArity"]
 PackageScope["procArity"]
+PackageScope["procInTypeArity"]
+PackageScope["procOutTypeArity"]
+PackageScope["procTypeArity"]
 PackageScope["procArityWidth"]
 PackageScope["procIn"]
 PackageScope["procOut"]
 PackageScope["procWidth"]
 PackageScope["procHeight"]
+PackageScope["procInputDimensions"]
+PackageScope["procOutputDimensions"]
+PackageScope["procDimensions"]
+
 PackageScope["unProc"]
 
 
 
-mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procFunc[p], f[procLabel[p]]]]
+mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procInterpretation[p], f[procLabel[p]]]]
 
 
 unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {4}]
@@ -206,6 +213,14 @@ procOutArity[Proc[_, _, out_, ___]] := Length[out]
 
 procArity[Proc[_, in_, out_, ___]] := Max[Length[in], Length[out]]
 
+
+procInTypeArity[Proc[_, in_, ___]] := Total[typeArity /@ in]
+
+procOutTypeArity[Proc[_, _, out_, ___]] := Total[typeArity /@ out]
+
+procTypeArity[p_Proc] := procInTypeArity[p] + procOutTypeArity[p]
+
+
 procArityWidth[p_Proc] := procArity[p]
 procArityWidth[Proc[Defer[Composition[ps__]], __]] := Max[procArityWidth /@ {ps}]
 procArityWidth[Proc[Defer[CircleTimes[ps__]], __]] := Total[procArityWidth /@ {ps}]
@@ -239,3 +254,10 @@ procIn[p : Proc[_, in_, ___]] := {p -> in}
 procOut[Proc[Defer[CircleTimes[ps__Proc]], ___]] := Catenate[procOut /@ {ps}]
 procOut[Proc[Defer[Composition[ps__Proc]], ___]] := procOut @ First@{ps}
 procOut[p : Proc[_, _, out_, ___]] := {p -> out}
+
+
+procInputDimensions[p_Proc] := Catenate[typeDimensions /@ procInput[p]]
+
+procOutputDimensions[p_Proc] := Catenate[typeDimensions /@ procOutput[p]]
+
+procDimensions[p_Proc] := Join[procOutputDimensions[p], procInputDimensions[p]];
