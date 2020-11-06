@@ -224,7 +224,7 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
             ]];
             With[{fun = shapeFun},
                 shapeFun = Which[
-                    procTagQ[p, {"algebraic transpose", "adjoint"}] || procTagQ[p, {"algebraic transpose", "adjoint"}],
+                    procTagQ[p, {"transpose", "adjoint"}] || procTagQ[p, {"algebraic transpose", "adjoint"}],
                     GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
                     procTagQ[p, "transpose" | "algebraic transpose"],
                     GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,

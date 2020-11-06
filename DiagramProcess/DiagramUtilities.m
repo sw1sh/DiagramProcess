@@ -50,7 +50,7 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
     {graphics, center} = Switch[
         OptionValue["Shape"],
         "Diamond",
-        {Polygon[{{0, 0}, {w / 8, 0}, {w / 8, h / 8}, {w / 2, h / 2}, {w, 0}, {w - w / 8, 0}, {w - w / 8, - h / 8}, {w / 2, - h / 2}}], {w / 2, 0}}
+        {Polygon[{{0, 0}, {w / 8, 0}, {w / 8, h / 8}, {w / 2, h / 2}, {w, 0}, {w - w / 8, 0}, {w - w / 8, - h / 8}, {w / 2, - h / 2}}], {w / 2, 0}},
         "UpTriangle",
         {Polygon[{{0, 0}, {w, 0}, {w 3 / 8, h}, {0, h 2 / 5}}], {w 3 / 8, h / 2}},
         "DownTriangle",
