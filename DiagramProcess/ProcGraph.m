@@ -14,7 +14,9 @@ Options[ProcGraph] = {
     "ShowProcessLabels" -> True,
     "ShowWireLabels" -> True,
     "ArrowPosition" -> Automatic,
-    "Size" -> Automatic};
+    "Size" -> Automatic,
+    "ThickDoubleWire" -> False
+};
 
 
 ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := Module[{
@@ -99,12 +101,15 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 ],
                 Which[
                 procTagQ[p, "id" | "cast"],
-                With[{dir = 1 - 2 Boole @ dualTypeQ[p[[2, 1]]], multiply = typeArity[p[[2, 1]]]},
+                With[{dir = 1 - 2 Boole @ dualTypeQ[p[[2, 1]]],
+                      multiply = With[{arity = typeArity[p[[2, 1]]]}, If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity]],
+                      style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[p[[2, 1]]] == 2, Thickness[Large], Thickness[Medium]]},
                     Function @ {
                         Black,
                         Wire[#1 + {0, - 1 / 2}, #1 + {0, 1 / 2}, "",
                              "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos,
-                             "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                             "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
+                             "Style" -> style]
                     }
                 ],
 
@@ -112,7 +117,9 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 {} &,
 
                 procTagQ[p, "initial" | "terminal"],
-                With[{xs = Range @ Length @ in},
+                With[{xs = Range @ Length @ in,
+                      multiply = With[{arity = typeArity[p[[2, 1]]]}, If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity]],
+                      style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[p[[2, 1]]] == 2, Thickness[Large], Thickness[Medium]]},
 
                     Function[{coord, v, size},
                         Map[Function[index, With[{
@@ -121,7 +128,10 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         },
                         {
                             Black,
-                            Wire[coord + fromShift, coord + toShift, "", "ArrowSize" -> 0]
+                            Wire[coord + fromShift, coord + toShift, "",
+                                 "ArrowSize" -> 0,
+                                 "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
+                                 "Style" -> style]
                         }
                         ]
                         ], xs]
@@ -135,49 +145,44 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                             fromShift = {edgeSideShift[fromIndex, size, inArity], - size[[2]] / 2},
                             toShift = {edgeSideShift[toIndex, size, outArity], size[[2]] / 2},
                             dir = 1 - 2 Boole @ dualTypeQ[v[[2, fromIndex]]],
-                            multiply = typeArity[p[[2, fromIndex]]]
+                            multiply = With[{arity = typeArity[p[[2, fromIndex]]]}, If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity]],
+                            style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[p[[2, fromIndex]]] == 2, Thickness[Large], Thickness[Medium]]
                         },
                         {
                             Black,
                             Wire[coord + fromShift, coord + toShift, "",
                                  "ArrowSize" -> 0 * dir, "ArrowPosition" -> arrowPos / 2,
-                                 "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                                 "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
+                                 "Style" -> style]
                         }
                         ]
-                        ], {FirstCase[#, _Integer, Missing[], All] & /@ p @@ xs, xs}]
+                        ], {Permute[xs, If[procTagQ[p, "double"], procData[procData[p]][[2]], procData[p][[2]]]], xs}]
                     ]
                 ],
 
                 procTagQ[p, "cup"],
-                With[{rotated = procRotatedQ[p], multiply = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]]},
+                With[{rotated = procRotatedQ[p], arity = typeArity[If[procRotatedQ[p], in[[1]], out[[1]]]], double = procTagQ[p, "double"]},
+                With[{multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity],
+                      style = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, Thickness[Large], Thickness[Medium]]},
                 Function[{coord, v, size}, If[rotated, {
                     Black,
                     Wire[coord + {edgeSideShift[1, size, 2], - size[[2]] / 2},
                          coord + {edgeSideShift[2, size, 2], - size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "UpArc",
-                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
+                         "Reverse" -> double, "Style" -> style]
                 }, {
                     Black,
                     Wire[coord + {edgeSideShift[1, size, 2], size[[2]] / 2},
                          coord + {edgeSideShift[2, size, 2], size[[2]] / 2}, "",
                          "VerticalShift" -> 1 / 2, "ArrowSize" -> 0, "Direction" -> "DownArc",
-                         "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth]
+                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
+                         "Reverse" -> double, "Style" -> style]
                 }
                 ]]
-                ],
+                ]],
 
                 procTagQ[p, "curry"],
-                With[{rotated = procRotatedQ[p]},
-                If[rotated,
-                Function[{coord, v, size}, {
-                    Black,
-                    Table[
-                        Wire[coord + {edgeSideShift[i, {1, 1}, 2] productWidth, - size[[2]] / 2},
-                             coord + {edgeSideShift[i, size, 2], size[[2]] / 2}, "",
-                             "ArrowSize" -> 0, "ArrowPosition" -> arrowPos],
-                        {i, 2}
-                    ]
-                }],
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -187,7 +192,6 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                         {i, 2}
                     ]
                 }]
-                ]]
                 ,
 
                 procTagQ[p, "discard"],
@@ -218,6 +222,18 @@ ProcGraph[p : Proc[Except[_Defer], in_, out_, ___], opts : OptionsPattern[]] := 
                 True,
                 outlineShapeFun
             ]];
+            With[{fun = shapeFun},
+                shapeFun = Which[
+                    procTagQ[p, {"algebraic transpose", "adjoint"}] || procTagQ[p, {"algebraic transpose", "adjoint"}],
+                    GeometricTransformation[fun[##], ReflectionTransform[{1, 0}, #1]] &,
+                    procTagQ[p, "transpose" | "algebraic transpose"],
+                    GeometricTransformation[fun[##], RotationTransform[Pi, #1]] &,
+                    procTagQ[p, "adjoint"],
+                    GeometricTransformation[fun[##], ReflectionTransform[{0, 1}, #1]] &,
+                    True,
+                    fun
+                ]
+            ];
             If[ procTagQ[p, "double"],
                 With[{fun = shapeFun},
                     shapeFun = {EdgeForm[{Black, Opacity[1], Thick}], fun[##]} &
@@ -286,7 +302,7 @@ ProcGraph[Proc[f : _Composition | _CircleTimes | _Plus, args__], opts : OptionsP
     ProcGraph[Proc[Defer[f], args], opts]
 
 
-ProcGraph[Proc[Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := ProcGraph[#, opts] & /@ {ps}
+ProcGraph[Proc[Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := Inactive[Plus] @@ (ProcGraph[#, opts] & /@ {ps})
 
 
 ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
@@ -299,7 +315,7 @@ ProcGraph[p : Proc[Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : Options
     vertexXShifts, vertexYShifts, vertexCoordinateShifts,
     shiftedGraphs, newVertexCoordinates
 },
-    If[TrueQ[OptionValue["AddTerminals"]],
+    If[ TrueQ[OptionValue["AddTerminals"]],
         Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
     ];
     size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
@@ -365,7 +381,7 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
     shiftedGraphs,
     newVertexCoordinates, newVertexSize
 },
-    If[TrueQ[OptionValue["AddTerminals"]], 
+    If[ TrueQ[OptionValue["AddTerminals"]],
         Return @ ProcGraph[withTerminals[p], "AddTerminals" -> False, opts]
     ];
     size = Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}];
@@ -405,14 +421,16 @@ ProcGraph[p : Proc[Defer[Composition[ps__Proc]], in_, out_, ___], opts : Options
             VertexShapeFunction -> Catenate @ Map[AnnotationValue[#, VertexShapeFunction] &, graphs],
             EdgeStyle -> Catenate @ Map[AnnotationValue[#, EdgeStyle] /. Automatic -> Nothing &, graphs]
         ],
-        OptionValue["ProductWidth"],
-        OptionValue["ArrowPosition"],
-        OptionValue["ShowArrowLabels"]
+        opts
     ]
 ]
 
 
-withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0.5, showLabels_ : True] := With[{
+withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := With[{
+    productWidth = Replace[OptionValue[ProcGraph, {opts}, "ProductWidth"], Automatic -> 1 / 10],
+    arrowPosition = OptionValue[ProcGraph, {opts}, "ArrowPosition"],
+    showLabels = OptionValue[ProcGraph, {opts}, "ShowArrowLabels"],
+    thickDoubleWire = OptionValue[ProcGraph, {opts}, "ThickDoubleWire"],
     vertexCoordinate = graphVertexCoordinates[g],
     vertexSize = Association @ AnnotationValue[g, VertexSize]
 },
@@ -423,13 +441,14 @@ withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0
                 toShift = edgeSideShift[j, vertexSize[w], procInArity[w]],
                 fromShiftIn = edgeSideShift[i, vertexSize[v], procInArity[v]],
                 toShiftOut = edgeSideShift[j, vertexSize[w], procOutArity[w]],
-                multiplicity = typeArity[v[[3, i]]],
-                multiplyWidthIn = Replace[productWidth, Automatic -> 1 / 10],
-                multiplyWidthOut = Replace[productWidth, Automatic -> 1 / 10],
+                multiplicity = If[TrueQ[thickDoubleWire] && typeArity[v[[3, i]]] == 2, 1, typeArity[v[[3, i]]]],
+                multiplyWidthIn = productWidth,
+                multiplyWidthOut = productWidth,
                 vsize = vertexSize[v], wsize = vertexSize[w],
                 inType =If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]],
                 outType = If[e[[3, 0]] === UpArrow, w[[3, j]], w[[2, j]]],
-                label = If[TrueQ[showLabels] && Not[procTagQ[v, "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""]
+                label = If[TrueQ[showLabels] && Not[procTagQ[v, "id"]], If[e[[3, 0]] === DownArrow, v[[2, i]], v[[3, i]]], ""],
+                style = If[TrueQ[thickDoubleWire] && typeArity[v[[3, i]]] == 2, Thickness[Large], Thickness[Medium]]
             },
             With[{
                 dir = If[dualType[inType] === outType, 0, 1 - 2 Boole @ dualTypesQ[inType]],
@@ -442,21 +461,24 @@ withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0
                         label,
                         "ArrowSize" -> Small dir, "ArrowPosition" -> arrowPosition,
                         "HorizontalShift" -> (fromShift + toShift) / 2 - vertexCoordinate[v][[1]],
-                        "Direction" -> "Loop"
+                        "Direction" -> "Loop", "Style" -> style
                     ] &,
                     e[[3, 0]] === DownArrow,
                     Wire[fromShiftScale[#1[[1]], {fromShiftIn, - vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
                         label,
-                        "ArrowSize" -> Small (- dir), "ArrowPosition" -> arrowPosition, "Direction" -> "DownArc"] &,
+                        "ArrowSize" -> Small (- dir), "ArrowPosition" -> arrowPosition, "Direction" -> "DownArc",
+                        "Style" -> style] &,
                     e[[3, 0]] === UpArrow,
                     Wire[fromShiftScale[#1[[1]], {fromShift, vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShiftOut, wsize[[2]] / 2}],
                         label,
-                        "ArrowSize" -> Small dir, "ArrowPosition" -> arrowPosition, "Direction" -> "UpArc"] &,
+                        "ArrowSize" -> Small dir, "ArrowPosition" -> arrowPosition, "Direction" -> "UpArc",
+                        "Style" -> style] &,
                     True,
                     Wire[fromShiftScale[#1[[1]], {fromShift, vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
                         label,
                         "ArrowSize" -> Small dir, "ArrowPosition" -> arrowPosition,
-                        "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut] &
+                        "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
+                        "Style" -> style] &
                 ]},
                     e -> Function[{Black, fun[##]}]
                 ]
@@ -468,11 +490,9 @@ withProcGraphEdgeShapeFunction[g_Graph, productWidth_ : 0.01, arrowPosition_ : 0
 ]
 
 
-simplifyProcGraph[g_Graph, OptionsPattern[ProcGraph]] := withProcGraphEdgeShapeFunction[
+simplifyProcGraph[g_Graph, opts : OptionsPattern[ProcGraph]] := withProcGraphEdgeShapeFunction[
     simplifyCaps @ simplifyCups @ (FixedPoint[simplifyPermutations, #] &) @ simplifyIdentities @ simplifyVoids @ g,
-    OptionValue["ProductWidth"],
-    OptionValue["ArrowPosition"],
-    OptionValue["ShowArrowLabels"]
+    opts
 ]
 
 

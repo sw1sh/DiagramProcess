@@ -96,7 +96,7 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[_, opts : OptionsPattern[]], form
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         d,
-        Magnify[Plus @@ GraphPlot /@ wrap @ d[
+        Magnify[Plus @@ wrap @ d[
             "Diagram",
             Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
         ], 0.5],

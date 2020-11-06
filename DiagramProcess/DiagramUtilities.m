@@ -50,7 +50,7 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
     {graphics, center} = Switch[
         OptionValue["Shape"],
         "Diamond",
-        {Polygon[{{0, 0}, {0, h / 9}, {w 7 / 16, h / 2}, {w, 0}, {w 7 / 16, - h / 2}, {0, - h / 9}}], {w 7 / 16, 0}},
+        {Polygon[{{0, 0}, {w / 8, 0}, {w / 8, h / 8}, {w / 2, h / 2}, {w, 0}, {w - w / 8, 0}, {w - w / 8, - h / 8}, {w / 2, - h / 2}}], {w / 2, 0}}
         "UpTriangle",
         {Polygon[{{0, 0}, {w, 0}, {w 3 / 8, h}, {0, h 2 / 5}}], {w 3 / 8, h / 2}},
         "DownTriangle",
@@ -74,17 +74,20 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
 Options[Wire] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic,
     "Direction" -> "BottomUp",
     "VerticalShift" -> 1, "HorizontalShift" -> 1,
-    "Multiply" -> 1, "MultiplyWidthIn" -> 0.1, "MultiplyWidthOut" -> 0.1}
+    "Multiply" -> 1, "MultiplyWidthIn" -> 0.1, "MultiplyWidthOut" -> 0.1,
+    "Style" -> {},
+    "Reverse" -> False}
 
 Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Table[
         With[{shiftIn = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthIn"],
-              shiftOut = edgeSideShift[i, {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"],
+              shiftOut = edgeSideShift[If[TrueQ[OptionValue["Reverse"]], OptionValue["Multiply"] - i + 1, i], {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"],
               arrowSize = OptionValue["ArrowSize"]},
         {Arrowheads[{{
             If[ListQ[arrowSize], arrowSize[[i]], arrowSize],
             OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
         ],
+        OptionValue["Style"],
         Switch[
             OptionValue["Direction"],
             "BottomUp",
@@ -104,7 +107,7 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
             Arrow[BSplineCurve[{
                 from + {shiftIn, 0},
                 {a + shiftIn, Min[b, d] - OptionValue["VerticalShift"]},
-                {(a + c) / 2, Min[b, d] - OptionValue["VerticalShift"] + (shiftIn + shiftOut) / 2},
+                {(a + c) / 2, Min[b, d] - OptionValue["VerticalShift"] + (2 shiftIn (*- shiftOut*))},
                 {c - shiftOut, Min[b, d] - OptionValue["VerticalShift"]},
                 to - {shiftOut, 0}
             }]],
@@ -112,7 +115,7 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
             Arrow[BSplineCurve[{
                 from + {shiftIn, 0},
                 {a + shiftIn, Max[b, d] + OptionValue["VerticalShift"]},
-                {(a + c) / 2, Max[b, d] + OptionValue["VerticalShift"] - (shiftIn + shiftOut) / 2},
+                {(a + c) / 2, Max[b, d] + OptionValue["VerticalShift"] - (2 shiftIn (*- shiftOut*))},
                 {c - shiftOut, Max[b, d] + OptionValue["VerticalShift"]},
                 to - {shiftOut, 0}
             }]]
