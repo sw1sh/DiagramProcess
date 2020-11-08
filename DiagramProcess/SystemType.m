@@ -13,7 +13,7 @@ PackageScope["typeList"]
 
 SystemType::usage = "A representation of types for process inputs and outputs"
 
-Options[SystemType] = {"Dual" -> False, "Dimensions" -> {2}, "Field" -> Complexes};
+Options[SystemType] = {"Dimensions" -> {2}, "Dual" -> False, "Field" -> Complexes};
 
 
 SystemType[_, opts : OptionsPattern[]][s_String] /; MemberQ[Keys[Options[SystemType]], s] := OptionValue[SystemType, {opts}, s]
@@ -35,8 +35,9 @@ SystemType /: (t : CircleTimes[ts__SystemType]) := SystemType[Defer[t],
 
 SystemType[SuperStar[type_], opts : OptionsPattern[]] := SuperStar[SystemType[type, opts]]
 
-SystemType[(Power | Superscript | Overscript)[type_, n_Integer], opts : OptionsPattern[]] := SystemType[type, "Dimensions" -> {n},
-    Sequence @@ FilterRules[{opts}, Except["Dimensions"]]]
+SystemType[(Power | Superscript | Overscript)[type_, n_Integer], opts : OptionsPattern[]] := SystemType[type,
+    Sequence @@ SortBy[Append[FilterRules[{opts}, Except["Dimensions"]], "Dimensions" -> {n}], First]
+]
 
 SystemType /: SuperStar[t_SystemType] := dualType @ t
 
@@ -56,8 +57,8 @@ dualTypeQ[t_SystemType] := TrueQ[t["Dual"]]
 
 dualType[SystemType[t : Except[_Defer], opts : OptionsPattern[SystemType]]] :=
     SystemType[t,
-      "Dual" -> Not[OptionValue[SystemType, {opts}, "Dual"]],
-      Sequence @@ FilterRules[{opts}, Except["Dual"]]]
+      Sequence @@ SortBy[Append[FilterRules[{opts}, Except["Dual"]], "Dual" -> Not[OptionValue[SystemType, {opts}, "Dual"]]], First]
+    ]
 
 dualType[SystemType[Defer[CircleTimes[ts__]], ___]] := Apply[CircleTimes, dualType /@ {ts}]
 
@@ -85,13 +86,18 @@ typeList[SystemType[Defer[CircleTimes[ts__SystemType]], ___]] := Catenate[typeLi
 typeList[t : SystemType[Except[_Defer], ___]] := {t}
 
 
-typeBasis[t_SystemType, flatten_ : True] := With[{dims = typeDimensions[t]},
-    With[{basis = Array[SparseArray[{{##} -> 1}, dims] &, dims]},
-        If[TrueQ[flatten], Flatten[basis, Length[dims] - 1], basis]
-    ]
+typeBasis[t_SystemType, matrix_ : False, flatten_ : True] := Module[{
+    dims = typeDimensions[t],
+    basis
+},
+    basis = Array[SparseArray[{{##} -> 1}, dims] &, dims];
+    If[ TrueQ[matrix],
+        basis = ArrayReshape[#, {1, Times @@ dims}] & /@ basis
+    ];
+    If[TrueQ[flatten], Flatten[basis, Length[dims] - 1], basis]
 ]
 
-t_SystemType["Basis"] := typeBasis[t]
+t_SystemType["Basis", args___] := typeBasis[t, args]
 
 
 (* Boxes *)

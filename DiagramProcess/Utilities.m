@@ -10,8 +10,8 @@ PackageScope["positionIn"]
 PackageScope["vertexMap"]
 PackageScope["edgeMap"]
 PackageScope["graphReplace"]
-PackageScope["replaceUnderHold"]
-
+PackageExport["replaceUnderHold"]
+PackageExport["InteractiveGraph"]
 
 
 getLabel[Labeled[_, l_]] := l
@@ -80,3 +80,7 @@ replaceUnderHold[expr_, rule_] := With[{pos = Position[expr, First @ rule]},
 
 replaceUnderHold[rule_] := Function[expr, replaceUnderHold[expr, rule]]
 
+
+InteractiveGraph[g_Graph] := DynamicModule[{pts = GraphEmbedding[g]},
+    LocatorPane[Dynamic[pts], Dynamic[Graph[g, VertexCoordinates -> pts]], Appearance -> None]
+]

@@ -43,13 +43,22 @@ Proc[Power[f_, Bs_]] := Proc[Superscript[f, Bs]]
 Proc[Power[Subscript[f_, As_], Bs_]] := Proc[Subsuperscript[f, As, Bs]]
 
 
-Proc[Transpose[f_]] := transposeProc @ Proc[f]
+Proc[Transpose[f_]] := Transpose @ Proc[f]
 
 
-Proc[SuperDagger[f_]] := adjointProc @ Proc[f]
+Proc["Transpose"[f_]] := algebraicTransposeProc @ Proc[f]
 
 
-Proc[OverBar[f_]] := conjugateProc @ Proc[f]
+Proc[SuperDagger[f_]] := SuperDagger @ Proc[f]
+
+
+Proc["Adjoint"[f_]] := algebraicAdjointProc @ Proc[f]
+
+
+Proc[OverBar[f_]] := OverBar @ Proc[f]
+
+
+Proc[Conjugate[f_]] := Conjugate @ Proc[f]
 
 
 Proc[Tr[f_]] := Tr[Proc[f]]
@@ -90,6 +99,9 @@ Proc /: SuperDagger[p_Proc] := adjointProc @ p
 
 
 Proc /: OverBar[p_Proc] := conjugateProc @ p
+
+
+Proc /: Conjugate[p_Proc] := algebraicConjugateProc @ p
 
 
 Proc /: Tr[p_Proc] := traceProc[p]
@@ -133,7 +145,7 @@ procTagQ[p_Proc, patt_] := AnyTrue[procTags[p], MatchQ[patt]]
 procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 
 
-procData[p_Proc] :=  If[Length[p] > 4, p[[5]], procLabel[p]]
+procData[p_Proc] := If[Length[p] > 4, p[[5]], procLabel[p]]
 
 
 setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Append[p, data]]

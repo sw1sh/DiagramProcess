@@ -108,9 +108,11 @@ xSpiderProc[args__] := setProcTag[zSpiderProc[args], "shaded"]
 
 measureProc[t_] := Proc["Measure", {CircleTimes[SystemType[t], SystemType[t]]}, {SystemType[t]}, {"spider", "topological"}, Unique["measure"]]
 
-encodeProc[t_] := mapProcLabel["Encode" &, adjointProc[measureProc[t]]]
+encodeProc[t_] := mapProcLabel["Encode" &, algebraicTransposeProc[measureProc[t]]]
 
-deleteProc[t_] := Proc[Labeled[{} &, "delete"], {SystemType[t]}, {}, {"spider", "topological"}, Unique["delete"]]
+deleteProc[t_] := Proc[Labeled[{} &, "Delete"], {SystemType[t]}, {}, {"spider", "topological"}, Unique["delete"]]
+
+createProc[t_] := mapProcLabel["Create" &, algebraicTransposeProc[deleteProc[t]]]
 
 
 Proc["Composite"[p_, args___]] := compositeProc[Proc[p], args]
@@ -146,6 +148,8 @@ Proc["MaximallyMixed"[a_]] := maximallyMixedProc[a]
 
 Proc["Spider"[n_, m_, t_]] := spiderProc[n, m, t]
 
+Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider", "topological"}]
+
 Proc["XSpider"[phase_, n_, m_, t_]] := xSpiderProc[Style[phase, Bold], n, m, t]
 
 Proc["ZSpider"[phase_, n_, m_, t_]] := zSpiderProc[phase, n, m, t]
@@ -155,3 +159,5 @@ Proc["Measure"[a_]] := measureProc[a]
 Proc["Encode"[a_]] := encodeProc[a]
 
 Proc["Delete"[a_]] := deleteProc[a]
+
+Proc["Decoherence"[a_]] := encodeProc[a] @* measureProc[a]

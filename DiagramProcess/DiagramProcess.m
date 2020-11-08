@@ -5,26 +5,29 @@ PackageExport["DiagramProcess"]
 PackageExport["ProcessTrace"]
 
 
-Options[DiagramProcess] = {"Simplify" -> False, "Double" -> None}
+Options[DiagramProcess] = {"Simplify" -> False, "Double" -> None, "Composite" -> None}
 
 
-DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph", "Tensor"}
+DiagramProcess[p_Proc, ___]["Properties"] = {"Process", "Diagram", "Graph", "Tensor", "Matrix"}
 
 
-DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := If[OptionValue["Double"] === None,
-    p,
-    If[TrueQ[OptionValue["Double"]], doubleProc @ p, unDoubleProc @ p]
+DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := Module[{q = p},
+    Switch[OptionValue["Double"], True, q = doubleProc @ q, False, q = unDoubleProc @ q];
+    Switch[OptionValue["Composite"], True, q = compositeProc @ q, False, q = unCompositeProc @ q];
+    q
 ]
 
 
 (d : DiagramProcess[_, opts : OptionsPattern[]])["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
-    g = ProcGraph[d["Process"], gopts]
+    g = ProcGraph[d["Process"], "Interactive" -> False, gopts]
 },
-    If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph @ g, g]
+    If[TrueQ[OptionValue[ProcGraph, {gopts}, "Interactive"]], InteractiveGraph, Identity] @ If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph @ g, g]
 ]
 
 
 d_DiagramProcess["Tensor"] := ProcTensor[d["Process"]]
+
+d_DiagramProcess["Matrix"] := ProcMatrix[d["Process"]]
 
 
 DiagramProcess[p_Proc, ___][x___] := p[x]
