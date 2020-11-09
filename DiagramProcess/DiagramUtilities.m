@@ -84,7 +84,7 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
               shiftOut = edgeSideShift[If[TrueQ[OptionValue["Reverse"]], OptionValue["Multiply"] - i + 1, i], {1, 1}, OptionValue["Multiply"]] * OptionValue["MultiplyWidthOut"],
               arrowSize = OptionValue["ArrowSize"]},
         {Arrowheads[{{
-            If[ListQ[arrowSize], arrowSize[[i]], arrowSize],
+            Small If[ListQ[arrowSize], arrowSize[[i]], arrowSize],
             OptionValue["ArrowPosition"] /. Automatic -> 0.4}}
         ],
         OptionValue["Style"],

@@ -10,6 +10,9 @@ ProcTensor[p_Proc] /; procTagQ[p, "double"] := ProcTensor[unDoubleProc[p]]
 ProcTensor[p_Proc] /; procTagQ[p, "composite"] := ProcTensor[unCompositeProc[p]]
 
 
+ProcTensor[p_Proc] /; procTagQ[p, "dual"] := Conjugate @ ProcTensor[unsetProcTag[p, "dual"]]
+
+
 ProcTensor[p : Proc[_Labeled, ___]] := ProcTensor[MapAt[unLabel, p, {1}]]
 
 
@@ -28,14 +31,8 @@ ProcTensor[p : Proc[Except[_Defer], in_, out_, ___]] := Module[{
         procTagQ[p, "permutation"],
         TensorTranspose[ArrayReshape[IdentityMatrix[Times @@ inDimensions], dimensions], procData[p][[2]]],
 
-        (* double/quantum spider *)
-        procTagQ[p, "spider" | "cup"] && SameQ @@ typeDimensions /@ Join[out, in] && AllTrue[typeDimensions /@ Join[out, in], Length[#] == 2 &],
-        With[{basis = typeBasis[#, True] & @ First @ Join[out, in], arity = procArity[p]},
-            Total[kroneckerProduct @@ Table[#, arity] & /@ basis]
-        ],
-
         (* classical and bastard spider *)
-        procTagQ[p, "spider" | "cup" | "discard"] && SameQ @@ typeDimensions /@ Flatten @ Join[typeList /@ out, typeList /@ in],
+        procTagQ[p, "spider" | "cup" | "discard"] && SameQ @@ typeDimensions /@ Flatten @ Join[typeList /@ out, typeList /@ in] && Length[dimensions] > 0,
         With[{basis = typeBasis[#, True, False] & /@ Join[out, in], dim = First @ typeDimensions @ First @ Join[out, in]},
             Sum[kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] / 2]]] & /@ basis), {i, dim}]
         ],

@@ -3,9 +3,9 @@ Package["DiagramProcess`"]
 PackageExport["transposeProc"]
 PackageExport["algebraicTransposeProc"]
 PackageExport["adjointProc"]
-PackageExport["algebraicAdjointProc"]
 PackageExport["conjugateProc"]
 PackageExport["algebraicConjugateProc"]
+PackageExport["dualProc"]
 PackageExport["stripProcLabel"]
 PackageExport["flattenProc"]
 PackageExport["traceProc"]
@@ -48,7 +48,7 @@ mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procInterpretation[p], f
 unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {4}]
 
 
-setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint" | "algebraic adjoint"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
+setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint" | "algebraic adjoint" | "dual"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
 
 setProcTag[p_Proc, tag : "composition" | "parallel composition" | "plus" | "sum"] /; procTagQ[p, "composition" | "parallel composition" | "plus" | "sum"] :=
     setProcTag[unsetProcTag[p, "composition" | "parallel composition" | "plus" | "sum"], tag]
@@ -66,7 +66,9 @@ transposeProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInterpretati
     Defer[CircleTimes[ps__Proc]] :> procInterpretation[CircleTimes @@ Reverse[transposeProc /@ {ps}]],
     Defer[Plus[ps__Proc]] :> procInterpretation[Plus @@ Reverse[transposeProc /@ {ps}]]
 }]},
-    setProcTag[Proc[Labeled[f, Transpose[procLabel[p]]], Map[dualType, Reverse @ out], Map[dualType, Reverse @ in], procTags[p], procData[p]], "transpose"]
+    setProcTag[Proc[Labeled[f, Transpose[procLabel[p]]],
+        Map[dualType @* reverseType, Reverse @ out], Map[dualType @* reverseType, Reverse @ in],
+        procTags[p], procData[p]], "transpose"]
 ]
 
 
@@ -75,7 +77,9 @@ algebraicTransposeProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInt
     Defer[CircleTimes[ps__Proc]] :> procInterpretation[CircleTimes @@ Reverse[algebraicTransposeProc /@ {ps}]],
     Defer[Plus[ps__Proc]] :> procInterpretation[Plus @@ Reverse[algebraicTransposeProc /@ {ps}]]
 }]},
-    setProcTag[Proc[Labeled[f, Transpose[procLabel[p]]], out, in, procTags[p], procData[p]], "algebraic transpose"]
+    setProcTag[Proc[Labeled[f, Transpose[procLabel[p]]],
+        out, in,
+        procTags[p], procData[p]], "algebraic transpose"]
 ]
 
 
@@ -88,19 +92,19 @@ adjointProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInterpretation
 ]
 
 
-algebraicAdjointProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInterpretation[p], {
-    Defer[Composition[ps__Proc]] :> procInterpretation[Composition @@ Reverse[algebraicAdjointProc /@ {ps}]],
-    Defer[CircleTimes[ps__Proc]] :> procInterpretation[CircleTimes @@ algebraicAdjointProc /@ {ps}],
-    Defer[Plus[ps__Proc]] :> procInterpretation[Plus @@ algebraicAdjointProc /@ {ps}]
+conjugateProc[p_Proc] := mapProcLabel[Replace[SuperDagger[Transpose[l_]] :> OverBar[l]], adjointProc[transposeProc[p]]]
+
+
+algebraicConjugateProc[p_Proc] := mapProcLabel[Replace[SuperDagger[Transpose[l_]] :> OverBar[l]], adjointProc[algebraicTransposeProc[p]]]
+
+
+dualProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInterpretation[p], {
+    Defer[Composition[ps__Proc]] :> procInterpretation[Composition @@ dualProc /@ {ps}],
+    Defer[CircleTimes[ps__Proc]] :> procInterpretation[CircleTimes @@ dualProc /@ {ps}],
+    Defer[Plus[ps__Proc]] :> procInterpretation[Plus @@ dualProc /@ {ps}]
 }]},
-    setProcTag[Proc[Labeled[f, SuperDagger[procLabel[p]]], out, in, procTags[p], procData[p]], "algebraic adjoint"]
+    setProcTag[Proc[Labeled[f, procLabel[p]], Map[dualType, in], Map[dualType, out], procTags[p], procData[p]], "dual"]
 ]
-
-
-conjugateProc[p_Proc] := mapProcLabel[Replace[Transpose[SuperDagger[l_]] :> OverBar[l]], transposeProc[adjointProc[p]]]
-
-
-algebraicConjugateProc[p_Proc] := mapProcLabel[Replace[Transpose[SuperDagger[l_]] :> OverBar[l]], algebraicTransposeProc[adjointProc[p]]]
 
 
 compositeProc[p_Proc, label_] := setProcTag[mapProcLabel[Framed[Interpretation[label, #]] &, p], "composite"]
@@ -121,7 +125,7 @@ doubleProc[p_Proc] := Module[{
     cp
 },
     If[procTagQ[p, "double"], Return[p]];
-    cp = conjugateProc[p];
+    cp = dualProc @ conjugateProc[p];
     q = CircleTimes[cp, p];
     If[ Length[procOutput[q]] > 0,
         Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p]]], pi},

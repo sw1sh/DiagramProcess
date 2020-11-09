@@ -5,6 +5,7 @@ PackageExport["SystemType"]
 PackageScope["dualTypeQ"]
 PackageScope["dualTypesQ"]
 PackageScope["dualType"]
+PackageScope["reverseType"]
 PackageScope["typeArity"]
 PackageScope["typeDimensions"]
 PackageScope["typeBasis"]
@@ -47,7 +48,7 @@ SystemType[SystemType[t_, args1___], args2___] := SystemType[t, Sequence @@ Norm
 
 typeLabel[type : SystemType[t_, ___]] := If[dualTypeQ[type], SuperStar[getLabel[t]], getLabel[t]]
 
-typeLabel[SystemType[Defer[CircleTimes[t_SystemType, t_SystemType]], ___]] := OverHat[typeLabel[t]]
+typeLabel[SystemType[Defer[CircleTimes[s_SystemType, t_SystemType]], ___]] /; s === dualType[t] := OverHat[typeLabel[t]]
 
 t_SystemType["Label"] := typeLabel[t]
 
@@ -61,6 +62,11 @@ dualType[SystemType[t : Except[_Defer], opts : OptionsPattern[SystemType]]] :=
     ]
 
 dualType[SystemType[Defer[CircleTimes[ts__]], ___]] := Apply[CircleTimes, dualType /@ {ts}]
+
+
+reverseType[SystemType[Defer[CircleTimes[ts__]], ___]] := CircleTimes @@ Reverse[{ts}]
+
+reverseType[t_SystemType] := t
 
 
 typeArity[_SystemType] := 1

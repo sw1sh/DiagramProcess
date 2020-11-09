@@ -46,13 +46,7 @@ Proc[Power[Subscript[f_, As_], Bs_]] := Proc[Subsuperscript[f, As, Bs]]
 Proc[Transpose[f_]] := Transpose @ Proc[f]
 
 
-Proc["Transpose"[f_]] := algebraicTransposeProc @ Proc[f]
-
-
 Proc[SuperDagger[f_]] := SuperDagger @ Proc[f]
-
-
-Proc["Adjoint"[f_]] := algebraicAdjointProc @ Proc[f]
 
 
 Proc[OverBar[f_]] := OverBar @ Proc[f]

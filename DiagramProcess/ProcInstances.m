@@ -19,6 +19,7 @@ PackageScope["discardProc"]
 PackageScope["maximallyMixedProc"]
 PackageScope["procBasis"]
 PackageScope["spiderProc"]
+PackageScope["dimensionProc"]
 PackageScope["xSpiderProc"]
 PackageScope["zSpiderProc"]
 PackageScope["measureProc"]
@@ -69,28 +70,28 @@ swapProc[A_, B_] := permutationProc[Cycles[{{1, 2}}], {A, B}]
 cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out], SystemType[out]}, {"cup", "topological"}, Unique["cup"]]
 
 
-capProc[in_] := mapProcLabel["\[Intersection]" &, transposeProc @ cupProc[in]]
+capProc[in_] := mapProcLabel["\[Intersection]" &, adjointProc[cupProc @ dualType @ SystemType[in]]]
 
 
 copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "copy"], {SystemType[in]}, Table[SystemType[in], n], {"spider", "topological"}, Unique["copy"]]
 
 
-matchProc[args__] := mapProcLabel["match" &, algebraicTransposeProc[copyProc[args]]]
+matchProc[ts__] := mapProcLabel["match" &, adjointProc[copyProc @@ dualType @* SystemType /@ {ts}]]
 
 
 sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
 
 
-uncurryProc[ts__] := mapProcLabel["uncurry" &, algebraicTransposeProc[curryProc[ts]]]
+uncurryProc[ts__] := mapProcLabel["uncurry" &, adjointProc[curryProc @@ dualType @* SystemType /@ {ts}]]
 
 
 curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[CircleTimes, SystemType /@ {ts}]}, {"curry", "topological"}, Unique["curry"]]
 
 
-discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
+discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
 
 
-maximallyMixedProc[t_] := mapProcLabel["mix" &, algebraicTransposeProc @ discardProc[t]]
+maximallyMixedProc[t_] := mapProcLabel["mix" &, adjointProc @ discardProc[dualType @ SystemType @ t]]
 
 
 procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
@@ -106,18 +107,24 @@ zSpiderProc[args__] := setProcTag[unsetProcTag[spiderProc[args], "topological"],
 xSpiderProc[args__] := setProcTag[zSpiderProc[args], "shaded"]
 
 
-measureProc[t_] := Proc["Measure", {CircleTimes[SystemType[t], SystemType[t]]}, {SystemType[t]}, {"spider", "topological"}, Unique["measure"]]
+measureProc[t_] := Proc["Measure", {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {SystemType[t]}, {"spider", "topological"}, Unique["measure"]]
 
-encodeProc[t_] := mapProcLabel["Encode" &, algebraicTransposeProc[measureProc[t]]]
+encodeProc[t_] := mapProcLabel["Encode" &, adjointProc[measureProc[dualType @ SystemType @ t]]]
 
 deleteProc[t_] := Proc[Labeled[{} &, "Delete"], {SystemType[t]}, {}, {"spider", "topological"}, Unique["delete"]]
 
-createProc[t_] := mapProcLabel["Create" &, algebraicTransposeProc[deleteProc[t]]]
+createProc[t_] := mapProcLabel["Create" &, adjointProc[deleteProc[dualType @ SystemType @ t]]]
+
+dimensionProc[t_] := Proc[Times @@ typeDimensions[SystemType[t]], {}, {}, {"spider", "topological"}, Unique["dimension"]]
 
 
 Proc["Composite"[p_, args___]] := compositeProc[Proc[p], args]
 
 Proc["Double"[p_]] := doubleProc[Proc[p]]
+
+Proc["Dual"[p_]] := dualProc[Proc[p]]
+
+Proc["Transpose"[f_]] := algebraicTransposeProc @ Proc[f]
 
 
 Proc["Zero"] := zeroProc[]
@@ -147,6 +154,8 @@ Proc["Discard"[a_]] := discardProc[a]
 Proc["MaximallyMixed"[a_]] := maximallyMixedProc[a]
 
 Proc["Spider"[n_, m_, t_]] := spiderProc[n, m, t]
+
+Proc["Dimension"[t_]] := dimensionProc[t]
 
 Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider", "topological"}]
 
