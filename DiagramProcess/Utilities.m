@@ -81,6 +81,23 @@ replaceUnderHold[expr_, rule_] := With[{pos = Position[expr, First @ rule]},
 replaceUnderHold[rule_] := Function[expr, replaceUnderHold[expr, rule]]
 
 
-InteractiveGraph[g_Graph] := DynamicModule[{pts = GraphEmbedding[g]},
-    LocatorPane[Dynamic[pts], Dynamic[Graph[g, VertexCoordinates -> pts]], Appearance -> None]
+Options[InteractiveGraph] = DeleteDuplicatesBy[First] @ Join[Options[LocatorPane], Options[Graphics]]
+
+Format[InteractiveGraph[g : Dynamic[data_, ops___], locopts : OptionsPattern[]], StandardForm] := DynamicModule[{
+    coords, pr
+},
+    coords = (VertexCoordinates /. AbsoluteOptions[data, VertexCoordinates]);
+    pr = Replace[OptionValue[Graphics, FilterRules[{locopts}, Options[Graphics]], PlotRange],
+        {
+            All | Automatic -> Dynamic[{{-.1, -.1}, {.1, .1}} + CoordinateBoundingBox[coords]],
+            {ymin_ ? NumericQ, ymax_ ? NumericQ} :> Transpose[{CoordinateBounds[coords][[1]], {ymin, ymax}}],
+            {x_List, y_List} :> Transpose[{x, y}]
+        }];
+    LocatorPane[
+        Dynamic[coords, Function[Set[coords, #];
+        Set[data, Graph[data, VertexCoordinates -> coords]]]],
+        Graphics[Dynamic @ First[Show @ data],
+        Sequence @@ FilterRules[{locopts}, Options[Graphics]]], pr,
+        Sequence @@ FilterRules[{locopts, Appearance -> None}, Options[LocatorPane]]
+    ]
 ]
