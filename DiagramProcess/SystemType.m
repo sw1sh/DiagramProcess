@@ -98,12 +98,12 @@ typeBasis[t_SystemType, matrix_ : False, flatten_ : True] := Module[{
 },
     basis = Array[SparseArray[{{##} -> 1}, dims] &, dims];
     If[ TrueQ[matrix],
-        basis = ArrayReshape[#, {1, Times @@ dims}] & /@ basis
+        basis = Map[ArrayReshape[#, {1, Times @@ dims}] &, basis, {Length[dims]}]
     ];
     If[TrueQ[flatten], Flatten[basis, Length[dims] - 1], basis]
 ]
 
-t_SystemType["Basis", args___] := typeBasis[t, args]
+t_SystemType["Basis"] := typeBasis[t, True, False]
 
 
 (* Boxes *)

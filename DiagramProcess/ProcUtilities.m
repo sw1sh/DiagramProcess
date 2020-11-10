@@ -45,7 +45,7 @@ PackageScope["unProc"]
 mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procInterpretation[p], f[procLabel[p]]]]
 
 
-unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {4}]
+unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {-1, Key["Tags"]}]
 
 
 setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint" | "algebraic adjoint" | "dual"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
@@ -53,7 +53,7 @@ setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint" | "alge
 setProcTag[p_Proc, tag : "composition" | "parallel composition" | "plus" | "sum"] /; procTagQ[p, "composition" | "parallel composition" | "plus" | "sum"] :=
     setProcTag[unsetProcTag[p, "composition" | "parallel composition" | "plus" | "sum"], tag]
 
-setProcTag[p_Proc, tag_] := If[procTagQ[p, tag], p, MapAt[Append[tag], p, {4}]]
+setProcTag[p_Proc, tag_] := If[procTagQ[p, tag], p, MapAt[Append[tag], p, {-1, Key["Tags"]}]]
 
 setProcTag[p_Proc, tags_List] := Fold[setProcTag, p, tags]
 
@@ -146,7 +146,7 @@ doubleProc[p_Proc] := Module[{
         ];
 
     ];
-    setProcData[setProcTag[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procTags[p], "double"]], p]
+    setProcTag[setProcData[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procData[p], "Double" -> p]], "double"]
 ]
 
 
@@ -170,7 +170,7 @@ flattenProc[p_Proc] := p //. Map[
 composeProcs[p : Proc[_, fIn_, fOut_, ___], q : Proc[_, gIn_, gOut_, ___]] :=
     Which[
         fIn === gOut,
-        Proc[Defer[p @* q], gIn, fOut, {"composition"}],
+        Proc[Defer[p @* q], gIn, fOut, <|"Tags" -> {"composition"}|>],
 
         True,
         Module[{

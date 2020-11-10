@@ -22,14 +22,15 @@ PackageScope["spiderProc"]
 PackageScope["dimensionProc"]
 PackageScope["xSpiderProc"]
 PackageScope["zSpiderProc"]
+PackageScope["hadamardProc"]
 PackageScope["measureProc"]
 PackageScope["encodeProc"]
 
 
 withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
    q,
-   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, {"terminal", "topological"}, Unique["initial"]],
-   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, {"terminal", "topological"}, Unique["terminal"]]
+   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["initial"]|>],
+   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["terminal"]|>]
 },
     q = If[Length @ out > 0, terminal @* p, p];
     flattenProc @ If[Length[in] > 0, q @* initial, q]
@@ -43,16 +44,16 @@ unlabeledProcQ[p_Proc] := procTagQ[p, "empty" | "id" | "cast" | "permutation" | 
     "copy" | "terminal" | "curry" | "discard"] || procTagQ[p, {"spider", "topological"}]
 
 
-emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, {"empty"}]
+emptyProc[] := Proc[Labeled[{} &, "\[EmptySet]"], {}, {}, <|"Tags" -> {"empty"}, "Id" -> Unique["empty"]|>]
 
 
-zeroProc[] := Proc[Labeled[0 &, "0"], {}, {}, {"zero"}]
+zeroProc[] := Proc[Labeled[0 &, "0"], {}, {}, <|"Tags" -> {"zero"}, "Id" -> Unique["zero"]|>]
 
 
-identityProc[in_] := Proc[Labeled[Identity, "1"], {SystemType @ in}, {SystemType @ in}, {"id", "topological"}, Unique["id"]]
+identityProc[in_] := Proc[Labeled[Identity, "1"], {SystemType @ in}, {SystemType @ in}, <|"Tags" -> {"id", "topological"}, "Id" -> Unique["id"]|>]
 
 
-castProc[in_, out_] := Proc[Labeled["Cast", "1"], {SystemType @ in}, {SystemType @ out}, {"cast"}, Unique["cast"]]
+castProc[in_, out_] := Proc[Labeled["Cast", "1"], {SystemType @ in}, {SystemType @ out}, <|"Tags" -> {"cast"}, "Id" -> Unique["cast"]|>]
 
 
 permutationProc[perm_Cycles, in_List] := With[{
@@ -60,62 +61,74 @@ permutationProc[perm_Cycles, in_List] := With[{
     invPerm = InversePermutation @ perm,
     inTypes = SystemType /@ in
 },
-    Proc[Labeled[Permute[{##}, invPerm] &, Subscript["\[Pi]", Row @ ps]], inTypes, Permute[inTypes, invPerm], {"permutation", "topological"}, Unique["pi"] -> invPerm]
+    Proc[Labeled[Permute[{##}, invPerm] &, Subscript["\[Pi]", Row @ ps]], inTypes, Permute[inTypes, invPerm],
+         <|"Tags" -> {"permutation", "topological"}, "Id" -> Unique["pi"], "Permutation" -> invPerm|>]
 ]
 
 
 swapProc[A_, B_] := permutationProc[Cycles[{{1, 2}}], {A, B}]
 
 
-cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out], SystemType[out]}, {"cup", "topological"}, Unique["cup"]]
+cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out], SystemType[out]}, <|"Tags" -> {"cup", "topological"}, "Id" -> Unique["cup"]|>]
 
 
-capProc[in_] := mapProcLabel["\[Intersection]" &, adjointProc[cupProc @ dualType @ SystemType[in]]]
+capProc[in_] := mapProcLabel["\[Intersection]" &, adjointProc[dualProc @ cupProc[in]]]
 
 
-copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "copy"], {SystemType[in]}, Table[SystemType[in], n], {"spider", "topological"}, Unique["copy"]]
+copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "copy"], {SystemType[in]}, Table[SystemType[in], n], <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["copy"]|>]
 
 
-matchProc[ts__] := mapProcLabel["match" &, adjointProc[copyProc @@ dualType @* SystemType /@ {ts}]]
+matchProc[ts__] := mapProcLabel["match" &, adjointProc[dualProc @ copyProc[ts]]]
 
 
-sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, {"sum"}, Unique["sum"]]
+sumProc[i_] := Proc[Labeled["Sum", Subscript["\[CapitalSigma]", i]], {}, {}, <|"Tags" -> {"sum"}, "Id" -> Unique["sum"]|>]
 
 
-uncurryProc[ts__] := mapProcLabel["uncurry" &, adjointProc[curryProc @@ dualType @* SystemType /@ {ts}]]
+uncurryProc[ts__] := mapProcLabel["uncurry" &, adjointProc[dualProc @ curryProc[ts]]]
 
 
-curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[CircleTimes, SystemType /@ {ts}]}, {"curry", "topological"}, Unique["curry"]]
+curryProc[ts__] := Proc[Labeled[List, "curry"], SystemType /@ {ts}, {Apply[CircleTimes, SystemType /@ {ts}]}, <|"Tags" -> {"curry", "topological"}, "Id" -> Unique["curry"]|>]
 
 
-discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {}, {"discard"}, Unique["discard"]]
+discardProc[t_] := Proc[Labeled[{} &, "discard"], {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {}, <|"Tags" -> {"discard"}, "Id" -> Unique["discard"]|>]
 
 
-maximallyMixedProc[t_] := mapProcLabel["mix" &, adjointProc @ discardProc[dualType @ SystemType @ t]]
+maximallyMixedProc[t_] := mapProcLabel["mix" &, adjointProc @ dualProc @ discardProc[t]]
 
 
 procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
 
 
-spiderProc[n_Integer, m_Integer, t_] := Proc["\[EmptyCircle]", Table[SystemType[t], n], Table[SystemType[t], m], {"spider", "topological"}, Unique["spider"]]
+spiderProc[phase_, n_, m_, t_, style_ : {}] := Proc[Labeled[phase, If[phase =!= 0, Style[phase, style], "\[EmptyCircle]"]],
+    Table[SystemType[t], n], Table[SystemType[t], m], <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["spider"], "Phase" -> phase|>]
 
-spiderProc[x_, n_Integer, m_Integer, t_] := mapProcLabel[x &, spiderProc[n, m, t]]
-
-
-zSpiderProc[args__] := setProcTag[unsetProcTag[spiderProc[args], "topological"], "phased"]
-
-xSpiderProc[args__] := setProcTag[zSpiderProc[args], "shaded"]
+spiderProc[n_, m_, t_] := spiderProc[0, n, m, t]
 
 
-measureProc[t_] := Proc["Measure", {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {SystemType[t]}, {"spider", "topological"}, Unique["measure"]]
+zSpiderProc[phase_, n_, m_, t_] := unsetProcTag[spiderProc[phase, n, m, SystemType[t]], "topological"]
+
+xSpiderProc[phase_, n_, m_, t_] := With[{
+    dim = Times @@ typeDimensions[SystemType[t]]
+},
+    setProcData[
+        zSpiderProc[phase, n, m, t],
+        "Basis" -> Table[ProcMatrix[zSpiderProc[j Most[Subdivide[2 Pi, dim]], 0, 1, t]] / Sqrt[dim], {j, dim}]
+    ]
+]
+
+hadamardProc[t_] := Proc[Labeled[HadamardMatrix[Times @@ typeDimensions[SystemType[t]]], "H"],
+    {SystemType[t]}, {SystemType[t]}, <|"Tags" -> {}, "Id" -> Unique["hadamard"]|>]
+
+
+measureProc[t_] := Proc["Measure", {CircleTimes[dualType @ SystemType[t], SystemType[t]]}, {SystemType[t]}, <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["measure"]|>]
 
 encodeProc[t_] := mapProcLabel["Encode" &, adjointProc[measureProc[dualType @ SystemType @ t]]]
 
-deleteProc[t_] := Proc[Labeled[{} &, "Delete"], {SystemType[t]}, {}, {"spider", "topological"}, Unique["delete"]]
+deleteProc[t_] := Proc[Labeled[{} &, "Delete"], {SystemType[t]}, {}, <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["delete"]|>]
 
 createProc[t_] := mapProcLabel["Create" &, adjointProc[deleteProc[dualType @ SystemType @ t]]]
 
-dimensionProc[t_] := Proc[Times @@ typeDimensions[SystemType[t]], {}, {}, {"spider", "topological"}, Unique["dimension"]]
+dimensionProc[t_] := Proc[Times @@ typeDimensions[SystemType[t]], {}, {}, <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["dimension"]|>]
 
 
 Proc["Composite"[p_, args___]] := compositeProc[Proc[p], args]
@@ -153,15 +166,17 @@ Proc["Discard"[a_]] := discardProc[a]
 
 Proc["MaximallyMixed"[a_]] := maximallyMixedProc[a]
 
-Proc["Spider"[n_, m_, t_]] := spiderProc[n, m, t]
+Proc["Spider"[args : Repeated[_, {2, 4}]]] := spiderProc[args]
 
 Proc["Dimension"[t_]] := dimensionProc[t]
 
 Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider", "topological"}]
 
-Proc["XSpider"[phase_, n_, m_, t_]] := xSpiderProc[Style[phase, Bold], n, m, t]
+Proc["XSpider"[args___]] := xSpiderProc[args]
 
-Proc["ZSpider"[phase_, n_, m_, t_]] := zSpiderProc[phase, n, m, t]
+Proc["ZSpider"[args___]] := zSpiderProc[args]
+
+Proc["Hadamard"[args___]] := hadamardProc[args]
 
 Proc["Measure"[a_]] := measureProc[a]
 

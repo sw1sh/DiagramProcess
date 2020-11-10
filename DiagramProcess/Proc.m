@@ -12,12 +12,12 @@ PackageScope["procData"]
 PackageScope["setProcData"]
 
 
-Options[Proc] = {};
+Options[Proc] = {}
 
 (*Construction*)
 
 Proc[Subsuperscript[f_, Row[As_], Row[Bs_]]] :=
-    Proc[f, SystemType /@ As, SystemType /@ Bs, {}]
+    Proc[f, SystemType /@ As, SystemType /@ Bs, <|"Tags" -> {}|>]
 
 Proc[Subsuperscript[f_, A_, Bs_Row]] :=
     Proc[Subsuperscript[f, Row @ wrap @ A, Bs]]
@@ -78,12 +78,12 @@ Proc /: CircleTimes[p_Proc] := p
 Proc /: CircleTimes[ps__Proc] :=
     flattenProc @
         Proc[Defer[CircleTimes[ps]], Catenate[#[[2]] & /@ {ps}],
-          Catenate[#[[3]] & /@ {ps}], {"parallel composition"}]
+          Catenate[#[[3]] & /@ {ps}], <|"Tags" -> {"parallel composition"}|>]
 
 
 Proc /: Plus[ps__Proc] :=
     flattenProc @
-        Proc[Defer[Plus[ps]], {ps}[[1, 2]], {ps}[[1, 3]], {"plus"}]
+        Proc[Defer[Plus[ps]], {ps}[[1, 2]], {ps}[[1, 3]],  <|"Tags" -> {"plus"}|>]
 
 
 Proc /: Transpose[p_Proc] := transposeProc @ p
@@ -129,7 +129,7 @@ procInput[Proc[_, in_, ___]] := in
 procOutput[Proc[_, _, out_, ___]] := out
 
 
-procTags[p_Proc] := p[[4]]
+procTags[p_Proc] := procData[p]["Tags"]
 
 
 procTagQ[p_Proc, ps_List] := AllTrue[ps, procTagQ[p, #] &]
@@ -139,10 +139,10 @@ procTagQ[p_Proc, patt_] := AnyTrue[procTags[p], MatchQ[patt]]
 procTagQ[patt_] := Function[p, procTagQ[p, patt]]
 
 
-procData[p_Proc] := If[Length[p] > 4, p[[5]], procLabel[p]]
+procData[p_Proc] := p[[-1]]
 
 
-setProcData[p_Proc, data_] := If[Length[p] > 4, ReplacePart[p, 5 -> data], Append[p, data]]
+setProcData[p_Proc, data_] := MapAt[<|#, data|> &, p, {-1}]
 
 
 (* Eval Proc *)

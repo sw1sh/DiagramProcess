@@ -150,12 +150,12 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                                  "Style" -> style]
                         }
                         ]
-                        ], {xs, Permute[xs, InversePermutation @ If[procTagQ[v, "double"], procData[procData[v]][[2]], procData[v][[2]]]]}]
+                        ], {xs, Permute[xs, InversePermutation @ If[procTagQ[v, "double"], procData[procData[v]["Double"]], procData[v]]["Permutation"]]}]
                     ]
                 ],
 
                 procTagQ[q, "cup"],
-                With[{arity = typeArity[Join[out, in][[1]]], double = procTagQ[q, "double"]},
+                With[{arity = typeArity[Join[out, in][[1]]]},
                 With[{multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity],
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, Thickness[Large], Thickness[Medium]],
                       dir = (1 - 2 Boole @ dualTypesQ[Join[out, in][[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
@@ -230,7 +230,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         ];
         With[{
             fun = shapeFun,
-            faceForm = If[procTagQ[p, "shaded"], FaceForm[Gray], FaceForm[Transparent]],
+            faceForm = If[! MissingQ[procData[p]["Basis"]], FaceForm[Gray], FaceForm[Transparent]],
             inLabels = Inactivate[Table[
                 With[{pos = posScale[#1, {edgeSideShift[i, #3, pInArity], - #3[[2]] / 2}]},
                     {
@@ -511,7 +511,7 @@ simplifyPermutations[g_Graph] := Module[{
                 Nothing,
                 DirectedEdge[#1[[1]], #2[[2]], #1[[3, 1]] -> #2[[3, 2]]]
             ] &,
-            {Permute[in, If[procTagQ[proc, "double"], procData[procData[proc]][[2]], procData[proc][[2]]]], out}
+            {Permute[in, If[procTagQ[proc, "double"], procData[procData[proc]["Double"]], procData[proc]]["Permutation"]], out}
         ]
     ]
 ]

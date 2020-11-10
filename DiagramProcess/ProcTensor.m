@@ -10,9 +10,6 @@ ProcTensor[p_Proc] /; procTagQ[p, "double"] := ProcTensor[unDoubleProc[p]]
 ProcTensor[p_Proc] /; procTagQ[p, "composite"] := ProcTensor[unCompositeProc[p]]
 
 
-ProcTensor[p_Proc] /; procTagQ[p, "dual"] := Conjugate @ ProcTensor[unsetProcTag[p, "dual"]]
-
-
 ProcTensor[p : Proc[_Labeled, ___]] := ProcTensor[MapAt[unLabel, p, {1}]]
 
 
@@ -29,13 +26,21 @@ ProcTensor[p : Proc[Except[_Defer], in_, out_, ___]] := Module[{
         IdentityMatrix[Times @@ inDimensions],
 
         procTagQ[p, "permutation"],
-        TensorTranspose[ArrayReshape[IdentityMatrix[Times @@ inDimensions], dimensions], procData[p][[2]]],
+        TensorTranspose[ArrayReshape[IdentityMatrix[Times @@ inDimensions], dimensions], procData[p]["Permutation"]],
 
         (* classical and bastard spider *)
         procTagQ[p, "spider" | "cup" | "discard"] && SameQ @@ typeDimensions /@ Flatten @ Join[typeList /@ out, typeList /@ in] && Length[dimensions] > 0,
-        With[{basis = typeBasis[#, True, False] & /@ Join[out, in], dim = First @ typeDimensions @ First @ Join[out, in]},
-            Sum[kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] / 2]]] & /@ basis), {i, dim}]
-        ],
+        With[{dim = First @ typeDimensions @ First @ Join[out, in]},
+        With[{phase = If[MissingQ[procData[p]["Phase"]], Table[1, dim], Prepend[Exp[I wrap[procData[p]["Phase"]]], 1]]},
+            If[ MissingQ[procData[p]["Basis"]],
+                With[{basis = typeBasis[#, True, False] & /@ Join[out, in]},
+                    Sum[phase[[i]] kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] - 2]]] & /@ basis), {i, dim}]
+                ],
+                With[{basis = procData[p]["Basis"]},
+                    Sum[phase[[i]] kroneckerProduct @@ Table[basis[[i]], Length[dimensions]], {i, dim}]
+                ]
+            ]
+        ]],
 
         ArrayQ[interpretation] && Times @@ Dimensions[interpretation] == Times @@ dimensions,
         interpretation,
@@ -49,12 +54,12 @@ ProcTensor[p : Proc[Except[_Defer], in_, out_, ___]] := Module[{
     If[ ArrayQ[tensor],
         tensor = ArrayReshape[tensor, dimensions]
     ];
-    If[ ArrayQ[tensor] && procTagQ[p, "transpose" | "algebraic transpose"],
+    If[ ArrayQ[tensor] && procTagQ[p, "algebraic transpose"],
         With[{n = Length[outDimensions], m = Length[inDimensions]},
             tensor = TensorTranspose[tensor, Join[Range[m] + n, Range[n]]]
         ]
     ];
-    If[ procTagQ[p, "adjoint"],
+    If[ procTagQ[p, "dual"],
         tensor = Conjugate[tensor]
     ];
     tensor
