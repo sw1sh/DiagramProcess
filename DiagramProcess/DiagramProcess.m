@@ -21,8 +21,14 @@ DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := Module[{q = p},
 (d : DiagramProcess[_, opts : OptionsPattern[]])["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
     g = ProcGraph[d["Process"], "Interactive" -> False, gopts]
 },
-    If[TrueQ[OptionValue[ProcGraph, {gopts}, "Interactive"]], Module[{graph = #}, InteractiveGraph[Dynamic[graph]]] &, Identity][
-        If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph[g, gopts], g]
+    If[ TrueQ[OptionValue[ProcGraph, {gopts}, "Interactive"]],
+        Module[{graph = #},
+            InteractiveGraph[Dynamic[graph], Sequence @@ FilterRules[{gopts}, Options[Graph]]]
+        ] &, Identity][
+        Graph[
+            If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph[g, gopts], g],
+            Sequence @@ FilterRules[{gopts}, Options[Graph]]
+        ]
     ]
 ]
 

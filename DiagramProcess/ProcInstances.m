@@ -105,7 +105,7 @@ spiderProc[phase_, n_, m_, t_, style_ : {}] := Proc[Labeled[phase, If[phase =!= 
 spiderProc[n_, m_, t_] := spiderProc[0, n, m, t]
 
 
-zSpiderProc[phase_, n_, m_, t_] := unsetProcTag[spiderProc[phase, n, m, SystemType[t]], "topological"]
+zSpiderProc[phase_, n_, m_, t_] := With[{p = spiderProc[phase, n, m, SystemType[t]]}, If[procData[p]["Phase"] == 0, p, unsetProcTag[p, "topological"]]]
 
 xSpiderProc[phase_, n_, m_, t_] := With[{
     dim = Times @@ typeDimensions[SystemType[t]]
@@ -138,6 +138,8 @@ Proc["Double"[p_]] := doubleProc[Proc[p]]
 Proc["Dual"[p_]] := dualProc[Proc[p]]
 
 Proc["Transpose"[f_]] := algebraicTransposeProc @ Proc[f]
+
+Proc["Tr"[p_, args___]] := traceProc[Proc[p], args]
 
 
 Proc["Zero"] := zeroProc[]

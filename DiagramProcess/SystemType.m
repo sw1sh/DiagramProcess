@@ -10,6 +10,7 @@ PackageScope["typeArity"]
 PackageScope["typeDimensions"]
 PackageScope["typeBasis"]
 PackageScope["typeList"]
+PackageScope["typeLabel"]
 
 
 SystemType::usage = "A representation of types for process inputs and outputs"

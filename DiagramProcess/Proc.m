@@ -103,6 +103,8 @@ Proc /: Tr[p_Proc] := traceProc[p]
 
 Proc[p : _Composition | _SmallCircle | _CircleTimes | _Plus] := Map[Proc, p]
 
+Proc[p : _RightComposition] := Map[Proc, Composition @@ Reverse[p]]
+
 Proc[Sum[p_, i_]] := CircleTimes[sumProc[i], Proc[p]]
 
 
@@ -185,7 +187,7 @@ Proc /: MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
             If[ MatchQ[procLabel[p], _SmallCircle | _CircleTimes | _Plus], RowBox[{"(", ToBoxes @ procLabel[p], ")"}], ToBoxes @ procLabel[p]],
             ToBoxes @ Row @ A, ToBoxes @ Row @ B
         ],
-    tooltip = ToBoxes[Row[{"Proc", ":", If[Length[A] == 0, "*", Splice @ A], "\[Rule]", If[Length[B] == 0, "*", Splice @ B]}], form]
+    tooltip = ToBoxes[Row[{procData[p]["Id"] /. _Missing -> procLabel[p], ":", If[Length[A] == 0, "*", Splice @ A], "\[Rule]", If[Length[B] == 0, "*", Splice @ B]}], form]
 },
     InterpretationBox[
         boxes,

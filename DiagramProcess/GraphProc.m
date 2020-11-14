@@ -11,7 +11,7 @@ GraphProc::unknownMethod = "Method should be one of \"TopDown\" or \"BottomUp\""
 GraphProcOptionsCheck[opts : OptionsPattern[GraphProc]] := If[! MatchQ[OptionValue[GraphProc, {opts}, Method], "TopDown" | "BottomUp"], Message[GraphProc::unknownMethod]; False, True]
 
 GraphProc[g_Graph, opts : OptionsPattern[]] /; GraphProcOptionsCheck[opts] :=
-    stripTypeSubsripts @ withUniqueTypes[graphProc[#, TrueQ[OptionValue[Method] == "TopDown"]] &, cupifyProcGraph @ g]
+    stripTypeDecorations @ withUniqueTypes[graphProc[#, TrueQ[OptionValue[Method] == "TopDown"]] &, cupifyProcGraph @ g]
 
 
 graphProc[g_Graph, topDown_ : False] := Module[{
@@ -67,65 +67,76 @@ withUniqueTypes[f_, graph_Graph] := Module[{
 ]
 
 
-stripTypeSubsripts[expr : _SystemType | _Proc] := expr /. SystemType[Subscript[t_, _], args___] :> SystemType[t, args]
+stripTypeDecorations[expr : _SystemType | _Proc] := expr //. SystemType[(Subscript | Overscript)[t_, _], args___] :> SystemType[t, args]
 
 
-removeCycles[g_Graph] := Module[{
+graphCycles[g_Graph] := Module[{
     loops, cycles, counts
 },
-    loops = EdgeList[g, DirectedEdge[x_, x_, ___]];
+    loops = EdgeList[g, DirectedEdge[x_, x_, _Rule]];
     cycles = FindCycle[If[Length[loops] > 0, EdgeDelete[g, loops], g], Infinity, All];
     counts = Counts[Catenate @ cycles];
-    Join[loops, DeleteDuplicates[First @* MaximalBy[counts] /@ cycles]]
+    Join[List /@ loops, #[[{1, -1}]] & /@ cycles]
 ]
 
 
 cupifyProcGraph[g_Graph] := Module[{
-    loops, loopEdges, cups, cupEdges, caps, capEdges
+    cycles, cycleEdges, cups, cupEdges, caps, capEdges
 },
-    loops = EdgeList[g, DirectedEdge[x_, x_, ___]];
-    loopEdges = Map[With[{cap = capProc[ #[[ 1, 3, #[[3, 1]] ]] ], cup = cupProc[ #[[ 1, 2, #[[3, 2]] ]] ]}, {
-            DirectedEdge[#[[1]], cap, #[[3, 1]] -> 2],
-            DirectedEdge[cup, #[[1]], 2 -> #[[3, 1]]],
+    cycles = Map[SortBy[#[[3, 2]] &]] @ graphCycles[g];
+    cycleEdges = Map[With[{cap = capProc[ #[[1, 1, 3, #[[1, 3, 1]] ]] ], cup = cupProc[ #[[-1, 2, 2, #[[2, 3, 2]] ]] ]}, {
+            DirectedEdge[#[[-1, 1]], cap, #[[-1, 3, 1]] -> 2],
+            DirectedEdge[cup, #[[1, 1]], 2 -> #[[-1, 3, 2]]],
             DirectedEdge[cup, cap, 1 -> 1]
         }] &,
-        loops];
+        cycles];
     caps = EdgeList[g, DirectedEdge[_, _, _UpArrow]];
     capEdges = Map[With[{cap = capProc[ #[[ 1, 3, #[[3, 1]] ]] ]}, {
-            DirectedEdge[#[[1]], cap, #[[3, 1]] -> 2],
-            DirectedEdge[#[[2]], cap, #[[3, 2]] -> 1]
+            DirectedEdge[#[[1]], cap, #[[3, 1]] -> 1],
+            DirectedEdge[#[[2]], cap, #[[3, 2]] -> 2]
         }] &,
         caps];
     cups = EdgeList[g, DirectedEdge[_, _, _DownArrow]];
     cupEdges = Map[With[{cup = cupProc[ #[[ 1, 2, #[[3, 1]] ]] ]}, {
-            DirectedEdge[cup, #[[1]], 2 -> #[[3, 1]]],
-            DirectedEdge[cup, #[[2]], 1 -> #[[3, 2]]]
+            DirectedEdge[cup, #[[1]], 1 -> #[[3, 1]]],
+            DirectedEdge[cup, #[[2]], 2 -> #[[3, 2]]]
         }] &,
         cups];
-    EdgeAdd[EdgeDelete[g, Join[loops, caps, cups]],
-        Catenate @ Join[loopEdges, capEdges, cupEdges]
+    With[{deleteEdges = Join[Last /@ cycles, caps, cups]},
+        EdgeAdd[
+            If[Length[deleteEdges] > 0, EdgeDelete[g, deleteEdges], g],
+            Catenate @ Join[cycleEdges, capEdges, cupEdges]
+        ]
     ]
 ]
 
 
-boxNamesProc[boxes_List, opts : OptionsPattern[graphProc]] := Module[{procs, ins, outs, types, edges},
+boxNamesProc[boxes_List, opts : OptionsPattern[graphProc]] := Module[{
+    procs, procTypes, uniqueTypes, edges
+},
     procs = Proc /@ boxes;
-    ins = #[[2]] & /@ procs;
-    outs = #[[3]] & /@ procs;
-    types = Union @ Flatten @ Join[ins, outs];
-    edges = Catenate @ Values @ Merge[{Merge[#[[1]] -> Position[ins, #] & /@ types, Apply[Join]], Merge[#[[1]] -> Position[outs, #] & /@ types, Apply[Join]]}, Apply[
-        Join[
-            If[Length[#1] > 1,
-                Apply[Function[DirectedEdge[procs[[#1[[1]]]], procs[[#2[[1]]]], DownArrow[#1[[2]], #2[[2]]]]]] /@ Partition[#1, 2, 1],
-                {}
-            ],
-            If[Length[#2] > 1,
-                Apply[Function[DirectedEdge[procs[[#1[[1]]]], procs[[#2[[1]]]], UpArrow[#1[[2]], #2[[2]]]]]] /@ Partition[#2, 2, 1],
-                {}
-            ],
-            Apply[DirectedEdge[procs[[#1[[1]]]], procs[[#2[[1]]]], Rule[#1[[2]], #2[[2]]]] &] /@ Tuples[{#2, #1}]
-        ]
-    &]];
+    procTypes = {procInput[#], procOutput[#]} & /@ procs;
+    uniqueTypes = Union @ Flatten @ procTypes;
+    edges = Catenate @ KeyValueMap[Function[{type, indices},
+        With[{
+            n = Count[indices[[All, 2]], 2] + Boole[MatchQ[type[[1]], Overscript[_, ToExpression @ "\[Breve]"]]],
+            m = Count[indices[[All, 2]], 1] + Boole[MatchQ[type[[1]], Overscript[_, ToExpression @ "\[DownBreve]"]]]
+        },
+        With[{
+            spider = spiderProc[n, m, type]
+        },
+            Module[{i = 1, j = 1},
+            Map[
+                If[ #1[[2]] == 1,
+                    DirectedEdge[spider, procs[[#1[[1]]]], i++ -> #1[[3]]],
+                    DirectedEdge[procs[[#1[[1]]]], spider, #1[[3]] -> j++]
+                ] &,
+                indices
+            ]
+            ]
+        ]]
+    ],
+        Merge[# -> Position[procTypes, #] & /@ uniqueTypes, Apply[Join]]
+    ];
     GraphProc[Graph[procs, edges], opts]
 ]
-

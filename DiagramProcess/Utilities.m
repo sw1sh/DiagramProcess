@@ -12,6 +12,7 @@ PackageScope["edgeMap"]
 PackageScope["graphReplace"]
 PackageExport["replaceUnderHold"]
 PackageExport["InteractiveGraph"]
+PackageExport["Circled"]
 
 
 getLabel[Labeled[_, l_]] := l
@@ -100,4 +101,14 @@ Format[InteractiveGraph[g : Dynamic[data_, ops___], locopts : OptionsPattern[]],
         Sequence @@ FilterRules[{locopts}, Options[Graphics]]], pr,
         Sequence @@ FilterRules[{locopts, Appearance -> None}, Options[LocatorPane]]
     ]
+]
+
+
+Circled[expr_, opts___] := Module[{proxy, s},
+    proxy = Framed[expr, ContentPadding -> False, FrameMargins -> 1];
+    s = Max @ Rasterize[proxy, "RasterSize"];
+    Framed[expr, opts, Alignment -> {Center, Center},
+        BaselinePosition -> Baseline, ImageSize -> {s, s} / GoldenRatio,
+        RoundingRadius -> Scaled[1], StripOnInput -> True
+  ]
 ]

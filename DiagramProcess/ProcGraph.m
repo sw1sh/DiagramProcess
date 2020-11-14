@@ -158,7 +158,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 With[{arity = typeArity[Join[out, in][[1]]]},
                 With[{multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity],
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, Thickness[Large], Thickness[Medium]],
-                      dir = (1 - 2 Boole @ dualTypesQ[Join[out, in][[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
+                      dir = Sign @ Fold[Subtract, 1 - 2 Boole[dualTypesQ /@ Join[out, in]]] Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
                 Function[{coord, v, size}, {
                     Black,
                     Wire[coord + {edgeSideShift[2, size, 2], size[[2]] / 2},
@@ -429,14 +429,6 @@ withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := Wit
                 toShiftScale = If[procTagQ[w, "spider"], #1 + Normalize[#2] wsize &, Plus]
             },
                 With[{fun = Which[
-                    v === w,
-                    Wire[fromShiftScale[#1[[1]], {fromShift, vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
-                        label,
-                        "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,
-                        "HorizontalShift" -> (fromShift + toShift) / 2 - vertexCoordinate[v][[1]],
-                        "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
-                        "Direction" -> "Loop", "Style" -> style
-                    ] &,
                     e[[3, 0]] === DownArrow,
                     Wire[fromShiftScale[#1[[1]], {fromShiftIn, - vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
                         label,
@@ -449,12 +441,22 @@ withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := Wit
                         "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition, "Direction" -> "UpArc",
                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
                         "Style" -> style] &,
+                    vertexCoordinate[v][[2]] > vertexCoordinate[w][[2]],
+                    Wire[fromShiftScale[#1[[1]], {fromShift, vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
+                        label,
+                        "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,
+                        "HorizontalShift" -> (fromShift + toShift) / 2 - vertexCoordinate[v][[1]],
+                        "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
+                        "Direction" -> "Loop", "Style" -> style
+                    ] &,
                     True,
                     Wire[fromShiftScale[#1[[1]], {fromShift, vsize[[2]] / 2}], toShiftScale[#1[[-1]], {toShift, - wsize[[2]] / 2}],
                         label,
                         "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,
                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
-                        "Style" -> style] &
+                        "Style" -> style,
+                        "Append" -> If[procTagQ[w, {"spider", "topological"}], #1[[-1]], None],
+                        "Prepend" -> If[procTagQ[v, {"spider", "topological"}], #1[[1]], None]] &
                 ]},
                     e -> Function[{Black, fun[##]}]
                 ]

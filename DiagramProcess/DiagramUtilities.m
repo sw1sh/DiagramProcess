@@ -76,7 +76,9 @@ Options[Wire] = {"ArrowSize" -> Small, "ArrowPosition" -> Automatic,
     "VerticalShift" -> 1, "HorizontalShift" -> 1,
     "Multiply" -> 1, "MultiplyWidthIn" -> 0.1, "MultiplyWidthOut" -> 0.1,
     "Style" -> {},
-    "Reverse" -> False}
+    "Reverse" -> False,
+    "Append" -> None,
+    "Prepend" -> None}
 
 Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
     Table[
@@ -92,14 +94,19 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
             OptionValue["Direction"],
             "BottomUp",
             Arrow[
-                BezierCurve[{
-                    {a + shiftIn, b}, {a + shiftIn , (b + d) / 2},
-                    {c + shiftIn, (b + d) / 2 }, {c + shiftOut, d}
+                BSplineCurve[{
+                    {a + shiftIn, b},
+                    If[OptionValue["Prepend"] =!= None, 2 {a + shiftIn, b} - OptionValue["Prepend"], Nothing],
+                    {a + shiftIn , (b + d) / 2},
+                    {c + shiftIn, (b + d) / 2 },
+                    If[OptionValue["Append"] =!= None, 2 {c + shiftOut, d} - OptionValue["Append"], Nothing],
+                    {c + shiftOut, d}
                 }]
             ],
             "Loop",
             Arrow[BSplineCurve[{
-                from + {shiftIn, 0}, from + {shiftIn, 1}, from + {shiftIn + OptionValue["HorizontalShift"], OptionValue["VerticalShift"]},
+                from + {shiftIn, 0}, from + {shiftIn, OptionValue["VerticalShift"]},
+                from + {shiftIn + OptionValue["HorizontalShift"], OptionValue["VerticalShift"]},
                 (from + to) / 2 + {(shiftIn + shiftOut) / 2 + OptionValue["HorizontalShift"], 0},
                 to + {shiftOut + OptionValue["HorizontalShift"], - 1}, to + {shiftOut, - OptionValue["VerticalShift"]}, to + {shiftOut, 0}}
             ]],
