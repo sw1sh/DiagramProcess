@@ -64,6 +64,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
     Graph[{Annotation[p, {
         VertexCoordinates -> vertexCoords,
         VertexSize -> vertexSize,
+        VertexLabels -> If[! unlabeledProcQ[p], Placed[vertexLabel, Center], None],
         VertexShapeFunction -> Module[{shapeFun, outlineShapeFun}, With[{
                 pIn = procInput[p], pOut = procOutput[p],
                 pInArity = procInArity[p], pOutArity = procOutArity[p],
@@ -260,8 +261,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         },
             With[{shapeFunBody = {
                     faceForm, Inactive[fun][##],
-                    If[! topologicalProcQ[p], {Black, PointSize[Medium], inLabels, outLabels} , Nothing],
-                    If[! unlabeledProcQ[p], {Black, Text[Style[vertexLabel, FontSize -> Medium], #1, Center]}, Nothing]
+                    If[! topologicalProcQ[p], {Black, PointSize[Medium], inLabels, outLabels} , Nothing]
                 }
             },
                 shapeFun = Function[shapeFunBody] // Activate
@@ -341,6 +341,7 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
     Graph[Catenate @ vertices, edges,
         VertexCoordinates -> newVertexCoordinates,
         VertexSize -> Catenate @ vertexSize,
+        VertexLabels -> Catenate[AnnotationValue[#, VertexLabels] & /@ graphs],
         VertexShapeFunction -> Catenate[AnnotationValue[#, VertexShapeFunction] & /@ graphs],
         EdgeShapeFunction -> Catenate[Replace[AnnotationValue[#, EdgeShapeFunction], Automatic -> {}] & /@ graphs]
     ]
@@ -391,6 +392,7 @@ ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[
         Graph[Catenate @ vertices, allEdges,
             VertexCoordinates -> Normal @ newVertexCoordinates,
             VertexSize -> Normal @ newVertexSize,
+            VertexLabels -> Catenate[AnnotationValue[#, VertexLabels] & /@ graphs],
             VertexShapeFunction -> Catenate @ Map[AnnotationValue[#, VertexShapeFunction] &, graphs],
             EdgeStyle -> Catenate @ Map[AnnotationValue[#, EdgeStyle] /. Automatic -> Nothing &, graphs]
         ],
