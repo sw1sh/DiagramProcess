@@ -167,7 +167,12 @@ flattenProc[p_Proc] := p //. Map[
 ]
 
 
-composeProcs[p : Proc[_, fIn_, fOut_, ___], q : Proc[_, gIn_, gOut_, ___]] :=
+composeProcs[p_Proc, q_Proc] := Module[{
+    fIn = Select[procInput[p], typeArity[#] > 0 &],
+    fOut = Select[procOutput[p], typeArity[#] > 0 &],
+    gIn = Select[procInput[q], typeArity[#] > 0 &],
+    gOut = Select[procOutput[q], typeArity[#] > 0 &]
+},
     Which[
         fIn === gOut,
         Proc[Defer[p @* q], gIn, fOut, <|"Tags" -> {"composition"}|>],
@@ -188,6 +193,7 @@ composeProcs[p : Proc[_, fIn_, fOut_, ___], q : Proc[_, gIn_, gOut_, ___]] :=
         ]
         ]
    ]
+]
 
 
 traceProc[p_Proc, ii_Integer : 1, jj_Integer : 1] := Module[{
@@ -230,11 +236,11 @@ compatibleProcsQ[ps__Proc] := Equal @@ Map[#[[2]] &, {ps}] && Equal @@ Map[#[[3]
 unProc[p_Proc] := unLabelAll[p //. Proc[op_, __] :> op /. Defer[x_] :> x]
 
 
-procInArity[Proc[_, in_, ___]] := Length[in]
+procInArity[Proc[_, in_, ___], includeEmpty_ : False] := If[includeEmpty, Length[in], Count[in, t_ /; typeArity[t] > 0]]
 
-procOutArity[Proc[_, _, out_, ___]] := Length[out]
+procOutArity[Proc[_, _, out_, ___], includeEmpty_ : False] := If[includeEmpty, Length[out], Count[out, t_ /; typeArity[t] > 0]]
 
-procArity[Proc[_, in_, out_, ___]] := Max[Length[in], Length[out]]
+procArity[p_Proc, includeEmpty_ : False] := Max[procInArity[p, includeEmpty], procOutArity[p, includeEmpty]]
 
 
 procInTypeArity[Proc[_, in_, ___]] := Total[typeArity /@ in]
@@ -269,18 +275,18 @@ procHeights[Proc[Labeled[Defer[CircleTimes[ps__]], _] | Defer[CircleTimes[ps__]]
 procHeights[Proc[Labeled[Defer[Composition[ps__]], _] | Defer[Composition[ps__]], __]] := {Map[procHeight, {ps}]}
 
 
-procIn[p_Proc ? (procTagQ["double" | "composite"])] := {p -> procInput[p]}
-procIn[Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[ps__Proc]], ___]] := Catenate[procIn /@ {ps}]
-procIn[Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], ___]] := procIn @ Last @ {ps}
-procIn[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___]] := procIn @ First @ {ps}
-procIn[p_Proc] := {p -> procInput[p]}
+procIn[p_Proc ? (procTagQ["double" | "composite"]), includeEmpty_ : False] := {p -> procInput[p, includeEmpty]}
+procIn[Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[ps__Proc]], ___], includeEmpty_ : False] := Catenate[procIn[#, includeEmpty] & /@ {ps}]
+procIn[Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], ___], includeEmpty_ : False] := procIn[Last @ {ps}, includeEmpty]
+procIn[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___], includeEmpty_ : False] := procIn[First @ {ps}, includeEmpty]
+procIn[p_Proc, includeEmpty_ : False] := {p -> procInput[p, includeEmpty]}
 
 
-procOut[p_Proc ? (procTagQ["double" | "composite"])] := {p -> procOutput[p]}
-procOut[Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[ps__Proc]], ___]] := Catenate[procOut /@ {ps}]
-procOut[Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], ___]] := procOut @ First @ {ps}
-procOut[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___]] := procOut @ First @ {ps}
-procOut[p : Proc[_, _, out_, ___]] := {p -> out}
+procOut[p_Proc ? (procTagQ["double" | "composite"]), includeEmpty_ : False] := {p -> procOutput[p, includeEmpty]}
+procOut[Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[ps__Proc]], ___], includeEmpty_ : False] := Catenate[procOut[#, includeEmpty] & /@ {ps}]
+procOut[Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], ___], includeEmpty_ : False] := procOut[First @ {ps}, includeEmpty]
+procOut[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___], includeEmpty_ : False] := procOut[First @ {ps}. includeEmpty]
+procOut[p_, includeEmpty_ : False] := {p -> procOutput[p, includeEmpty]}
 
 
 procInputDimensions[p_Proc] := Catenate[typeDimensions /@ procInput[p]]

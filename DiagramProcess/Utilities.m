@@ -75,8 +75,8 @@ edgeMap[f_] := Function[g, edgeMap[f, g]]
 graphReplace[g_Graph, rules_] := edgeMap[ReplaceAll[rules], vertexMap[ReplaceAll[rules], g]]
 
 
-replaceUnderHold[expr_, rule_] := With[{pos = Position[expr, First @ rule]},
-    Replace[ReplacePart[expr, Thread[pos -> Map[Replace[rule], Extract[expr, pos]]]], rule]
+replaceUnderHold[expr_, rule_] := With[{pos = SortBy[Position[expr, First @ rule], Length]},
+    Replace[Fold[ReplacePart, expr, Thread[pos -> Map[Replace[rule], Extract[expr, pos]]]], rule]
 ]
 
 replaceUnderHold[rule_] := Function[expr, replaceUnderHold[expr, rule]]

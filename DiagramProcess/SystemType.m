@@ -11,6 +11,7 @@ PackageScope["typeDimensions"]
 PackageScope["typeBasis"]
 PackageScope["typeList"]
 PackageScope["typeLabel"]
+PackageScope["emptyType"]
 
 
 SystemType::usage = "A representation of types for process inputs and outputs"
@@ -25,6 +26,14 @@ $systemTypeProperties = Join[Keys[Options[SystemType]], {"Arity", "Basis", "Labe
 _SystemType["Properties"] := $systemTypeProperties
 
 
+SystemType[(Power | Superscript | Overscript)[type_, 0] | 1, ___] := emptyType[type]
+
+SystemType[1, ___] := emptyType["1"]
+
+SystemType[(Power | Superscript | Overscript)[type_, n_Integer ? Positive], opts : OptionsPattern[]] := SystemType[type,
+    Sequence @@ SortBy[Append[FilterRules[{opts}, Except["Dimensions"]], "Dimensions" -> {n}], First]
+]
+
 SystemType[type : Except[_SystemType]] := SystemType[type, Sequence @@ Options[SystemType]]
 
 SystemType[type : Except[_SystemType], opts : OptionsPattern[]] /; ! ContainsAll[Keys[{opts}], Keys[Options[SystemType]]] :=
@@ -37,9 +46,6 @@ SystemType /: (t : CircleTimes[ts__SystemType]) := SystemType[Defer[t],
 
 SystemType[SuperStar[type_], opts : OptionsPattern[]] := SuperStar[SystemType[type, opts]]
 
-SystemType[(Power | Superscript | Overscript)[type_, n_Integer], opts : OptionsPattern[]] := SystemType[type,
-    Sequence @@ SortBy[Append[FilterRules[{opts}, Except["Dimensions"]], "Dimensions" -> {n}], First]
-]
 
 SystemType /: SuperStar[t_SystemType] := dualType @ t
 
@@ -70,7 +76,7 @@ reverseType[SystemType[Defer[CircleTimes[ts__]], ___]] := CircleTimes @@ Reverse
 reverseType[t_SystemType] := t
 
 
-typeArity[_SystemType] := 1
+typeArity[t_SystemType] := If[typeDimensions[t] === {}, 0, 1]
 
 typeArity[SystemType[Defer[CircleTimes[ts__]], ___]] := Total[typeArity /@ {ts}]
 
@@ -107,10 +113,14 @@ typeBasis[t_SystemType, matrix_ : False, flatten_ : True] := Module[{
 t_SystemType["Basis"] := typeBasis[t, True, False]
 
 
+emptyType[t_] := SystemType[t, "Dimensions" -> {}, "Field" -> CircleTimes[]]
+
+
 (* Boxes *)
 MakeBoxes[type : SystemType[_, OptionsPattern[]], form_] := With[{
     boxes = ToBoxes[typeLabel[type], form],
-    tooltip = ToBoxes[unWrap[MapThread[Superscript, {wrap[typeField[type] /. CircleTimes -> List], typeDimensions[type]}]] /. List -> CircleTimes, form]
+    tooltip = ToBoxes[unWrap[MapThread[Superscript, {wrap[typeField[type] /. CircleTimes -> List], typeDimensions[type]}]]
+        /. List -> CircleTimes /. CircleTimes[] -> 1, form]
 },
     InterpretationBox[
         boxes,

@@ -125,10 +125,10 @@ procLabel[Proc[Defer[Plus[ps__]], __]] := Inactive[Plus] @@ Map[procLabel, {ps}]
 procLabel[Proc[f_, __]] := getLabel[f]
 
 
-procInput[Proc[_, in_, ___]] := in
+procInput[Proc[_, in_, ___], includeEmpty_ : False] := If[includeEmpty, in, Select[in, typeArity[#] > 0 &]]
 
 
-procOutput[Proc[_, _, out_, ___]] := out
+procOutput[Proc[_, _, out_, ___], includeEmpty_ : False] := If[includeEmpty, out, Select[out, typeArity[#] > 0 &]]
 
 
 procTags[p_Proc] := procData[p]["Tags"]
@@ -181,17 +181,18 @@ Proc[Defer[Composition[p_Proc, ps___Proc]], in_, out_, args___][x___] := With[{
 
 (* Boxes *)
 
-Proc /: MakeBoxes[p : Proc[f_, A_List, B_List, _, ___], form_] := With[{
+Proc /: MakeBoxes[p_Proc, form_] := Module[{in = procInput[p, True], out = procOutput[p, True]}, With[{
     boxes =
         UnderoverscriptBox[
             If[ MatchQ[procLabel[p], _SmallCircle | _CircleTimes | _Plus], RowBox[{"(", ToBoxes @ procLabel[p], ")"}], ToBoxes @ procLabel[p]],
-            ToBoxes @ Row @ A, ToBoxes @ Row @ B
+            ToBoxes @ Row @ in, ToBoxes @ Row @ out
         ],
-    tooltip = ToBoxes[Row[{procData[p]["Id"] /. _Missing -> procLabel[p], ":", If[Length[A] == 0, "*", Splice @ A], "\[Rule]", If[Length[B] == 0, "*", Splice @ B]}], form]
+    tooltip = ToBoxes[Row[{procData[p]["Id"] /. _Missing -> procLabel[p], ":",
+        If[procInArity[p], "*", Splice @ in], "\[Rule]", If[procOutArity[p] == 0, "*", Splice @ out]}], form]
 },
     InterpretationBox[
         boxes,
         p,
         Tooltip -> tooltip
     ]
-]
+]]

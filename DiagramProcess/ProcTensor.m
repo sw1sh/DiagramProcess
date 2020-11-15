@@ -13,7 +13,8 @@ ProcTensor[p_Proc] /; procTagQ[p, "composite"] := ProcTensor[unCompositeProc[p]]
 ProcTensor[p : Proc[_Labeled, ___]] := ProcTensor[MapAt[unLabel, p, {1}]]
 
 
-ProcTensor[p : Proc[Except[_Defer], in_, out_, ___]] := Module[{
+ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
+    in = procInput[p], out = procOutput[p],
     interpretation = procInterpretation[p],
     inDimensions, outDimensions, dimensions,
     tensor
@@ -65,7 +66,7 @@ ProcTensor[p : Proc[Except[_Defer], in_, out_, ___]] := Module[{
     tensor
 ]
 
-ProcTensor[p : Proc[Defer[CircleTimes[ps__]], in_, out_, ___]] :=
+ProcTensor[p : Proc[Defer[CircleTimes[ps__]], ___]] :=
     ArrayReshape[KroneckerProduct @@ ProcMatrix /@ {ps}, procDimensions[p]]
 
 

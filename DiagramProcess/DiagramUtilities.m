@@ -131,16 +131,16 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
         ],
         {i, OptionValue["Multiply"]}
     ],
-    Text[Style[label, Bold, Black, FontSize -> Small], from + {2 Boole[a >= c] - 1, 1} / 8]
+    Text[Style[label, Bold, Black, FontSize -> Small], (from + to) / 2]
 }
 
 
 edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2)
 
 
-betweenEdges[p : Proc[f_, pIn_, pOut_, ___], q : Proc[g_, qIn_, qOut_, ___]] := With[{
-    in = Catenate[enumerate @* Thread /@ procIn[p]],
-    out = Catenate[enumerate @* Thread /@ procOut[q]]
+betweenEdges[p_Proc, q_Proc] := With[{
+    in = DeleteCases[Catenate[enumerate @* Thread /@ procIn[p, True]], {_[_, t_], _} /; typeArity[t] == 0],
+    out = DeleteCases[Catenate[enumerate @* Thread /@ procOut[q, True]], {_[_, t_], _} /; typeArity[t] == 0]
 },
     If[ Length[in] == 0 || Length[out] == 0,
         {},

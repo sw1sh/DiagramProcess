@@ -27,11 +27,14 @@ PackageScope["measureProc"]
 PackageScope["encodeProc"]
 
 
-withTerminals[p : Proc[f_, in_, out_, ___]] := Module[{
-   q,
-   initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["initial"]|>],
-   terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["terminal"]|>]
+withTerminals[p_Proc] := Module[{
+    in = procInput[p],
+    out = procOutput[p],
+    q,
+    initial, terminal
 },
+    initial = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalI]"], in, in, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["initial"]|>];
+    terminal = Proc[Labeled[unWrap[{##}] &, "\[ScriptCapitalT]"], out, out, <|"Tags" -> {"terminal", "topological"}, "Id" -> Unique["terminal"]|>];
     q = If[Length @ out > 0, terminal @* p, p];
     flattenProc @ If[Length[in] > 0, q @* initial, q]
 ]
@@ -133,6 +136,8 @@ dimensionProc[t_] := Proc[Times @@ typeDimensions[SystemType[t]], {}, {}, <|"Tag
 
 Proc["Composite"[p_, args___]] := compositeProc[Proc[p], args]
 
+Proc["Circuit"[p_]] := replaceUnderHold[Proc[p], q_Proc :> setProcTag[q, "circuit"]]
+
 Proc["Double"[p_]] := doubleProc[Proc[p]]
 
 Proc["Dual"[p_]] := dualProc[Proc[p]]
@@ -168,11 +173,13 @@ Proc["Discard"[a_]] := discardProc[a]
 
 Proc["MaximallyMixed"[a_]] := maximallyMixedProc[a]
 
-Proc["Spider"[args : Repeated[_, {2, 4}]]] := spiderProc[args]
+Proc["Spider"[args : Repeated[_, {3, 4}]]] := spiderProc[args]
+
+Proc["Spider"[in_List, out_List]] := setProcData[setProcTag[Proc[Subsuperscript["\[EmptyCircle]", in, out]], {"spider", "topological"}], "Id" -> Unique["spider"]]
+
+Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider"}]
 
 Proc["Dimension"[t_]] := dimensionProc[t]
-
-Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider", "topological"}]
 
 Proc["XSpider"[args___]] := xSpiderProc[args]
 
