@@ -17,7 +17,7 @@ Options[Proc] = {}
 (*Construction*)
 
 Proc[Subsuperscript[f_, Row[As_], Row[Bs_]]] :=
-    Proc[f, SystemType /@ As, SystemType /@ Bs, <|"Tags" -> {}|>]
+    Proc[f, SystemType /@ As, SystemType /@ Bs, <|"Id" -> Unique[], "Tags" -> {}|>]
 
 Proc[Subsuperscript[f_, A_, Bs_Row]] :=
     Proc[Subsuperscript[f, Row @ wrap @ A, Bs]]

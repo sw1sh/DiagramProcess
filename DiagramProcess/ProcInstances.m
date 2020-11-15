@@ -102,21 +102,33 @@ maximallyMixedProc[t_] := mapProcLabel["mix" &, adjointProc @ dualProc @ discard
 procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
 
 
-spiderProc[phase_, n_, m_, t_, style_ : {}] := Proc[Labeled[phase, If[phase =!= 0, Style[phase, style], "\[EmptyCircle]"]],
-    Table[SystemType[t], n], Table[SystemType[t], m], <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["spider"], "Phase" -> phase|>]
+spiderProc[phase_, in_List, out_List] := Proc[Labeled[phase, If[phase =!= 0, phase, "\[EmptyCircle]"]],
+    SystemType /@ in, SystemType /@ out, <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["spider"], "Phase" -> phase|>]
+
+spiderProc[in_List, out_List] := spiderProc[0, in, out]
+
+spiderProc[phase_, n_, m_, t_] := spiderProc[phase, Table[t, n], Table[t, m]]
 
 spiderProc[n_, m_, t_] := spiderProc[0, n, m, t]
 
 
-zSpiderProc[phase_, n_, m_, t_] := With[{p = spiderProc[phase, n, m, SystemType[t]]}, If[procData[p]["Phase"] == 0, p, unsetProcTag[p, "topological"]]]
+zSpiderProc[args__] := With[{p = spiderProc[args]}, If[procData[p]["Phase"] === 0, p, unsetProcTag[p, "topological"]]]
 
-xSpiderProc[phase_, n_, m_, t_] := With[{
-    dim = Times @@ typeDimensions[SystemType[t]]
+xSpiderProc[args__] := Module[{
+    p = zSpiderProc[args],
+    t,
+    dim
 },
-    setProcData[
-        zSpiderProc[phase, n, m, t],
-        "Basis" -> Table[ProcMatrix[zSpiderProc[j Most[Subdivide[2 Pi, dim]], 0, 1, t]] / Sqrt[dim], {j, dim}]
-    ]
+    t = First @ Join[procOutput[p], procInput[p]];
+    dim = Times @@ typeDimensions[p];
+    setProcData[p, "Basis" -> xBasis[{t}]]
+]
+
+xBasis[ts_List] := Map[
+    With[{dim = Times @@ typeDimensions[#1]},
+        Table[ProcMatrix[zSpiderProc[j Most[Subdivide[2 Pi, dim]], 0, 1, #]] / Sqrt[dim], {j, dim}]
+    ] &,
+    SystemType /@ ts
 ]
 
 hadamardProc[t_] := Proc[Labeled[HadamardMatrix[Times @@ typeDimensions[SystemType[t]]], "H"],
@@ -179,6 +191,8 @@ Proc["Spider"[in_List, out_List]] := setProcData[setProcTag[Proc[Subsuperscript[
 
 Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider"}]
 
+Proc["SpiderId"[t_]] := setProcTag[spiderProc[{1, t}, {t, 1}], {"id", "circuit"}]
+
 Proc["Dimension"[t_]] := dimensionProc[t]
 
 Proc["XSpider"[args___]] := xSpiderProc[args]
@@ -194,3 +208,10 @@ Proc["Encode"[a_]] := encodeProc[a]
 Proc["Delete"[a_]] := deleteProc[a]
 
 Proc["Decoherence"[a_]] := encodeProc[a] @* measureProc[a]
+
+Proc["LeviCevita"[n_Integer, t_]] := Proc[Labeled[LeviCivitaTensor[n], "\[CurlyEpsilon]"], Table[SystemType[t, "Dimensions" -> {n}], n], {}, <|"Id" -> Unique["levicevita"], "Tags" -> {}|>]
+
+Proc["CNOT"[t_]] := mapProcLabel["CNOT" &,
+    Proc["Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "SpiderId"[t]) /* ("SpiderId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
+]
+

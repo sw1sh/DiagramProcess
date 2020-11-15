@@ -37,7 +37,7 @@ ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
                 With[{basis = typeBasis[#, True, False] & /@ Join[out, in]},
                     Sum[phase[[i]] kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] - 2]]] & /@ basis), {i, dim}]
                 ],
-                With[{basis = procData[p]["Basis"]},
+                With[{basis = First @ procData[p]["Basis"]},
                     Sum[phase[[i]] kroneckerProduct @@ Table[basis[[i]], Length[dimensions]], {i, dim}]
                 ]
             ]
