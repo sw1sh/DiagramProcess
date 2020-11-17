@@ -103,7 +103,7 @@ procBasis[t_, n_Integer] := Table[Proc[Superscript[i, t]], {i, n}]
 
 
 spiderProc[phase_, in_List, out_List] := Proc[Labeled[phase, If[phase =!= 0, phase, "\[EmptyCircle]"]],
-    SystemType /@ in, SystemType /@ out, <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["spider"], "Phase" -> phase|>]
+    SystemType /@ in, SystemType /@ out, <|"Tags" -> {"spider", If[phase === 0, "topological", Nothing]}, "Id" -> Unique["spider"], "Phase" -> phase|>]
 
 spiderProc[in_List, out_List] := spiderProc[0, in, out]
 
@@ -191,7 +191,7 @@ Proc["Spider"[in_List, out_List]] := setProcData[setProcTag[Proc[Subsuperscript[
 
 Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider"}]
 
-Proc["SpiderId"[t_]] := setProcTag[spiderProc[{1, t}, {t, 1}], {"id", "circuit"}]
+Proc["CircuitId"[t_]] := setProcTag[spiderProc[{1, t}, {t, 1}], {"id", "circuit"}]
 
 Proc["Dimension"[t_]] := dimensionProc[t]
 
@@ -212,11 +212,11 @@ Proc["Decoherence"[a_]] := encodeProc[a] @* measureProc[a]
 Proc["LeviCevita"[n_Integer, t_]] := Proc[Labeled[LeviCivitaTensor[n], "\[CurlyEpsilon]"], Table[SystemType[t, "Dimensions" -> {n}], n], {}, <|"Id" -> Unique["levicevita"], "Tags" -> {}|>]
 
 Proc["CNOT"[t_]] := mapProcLabel["CNOT" &,
-    Proc["Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "SpiderId"[t]) /* ("SpiderId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
+    Proc["Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "CircuitId"[t]) /* ("CircuitId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
 ]
 
 Proc["QCNOT"[t_]] := mapProcLabel["CNOT" &,
-    Proc["Circuit"[("Double"["Spider"[{1, t}, {t, t}]] \[CircleTimes] "SpiderId"[SuperStar[t] \[CircleTimes] t]) /*
-        ("SpiderId"[SuperStar[t] \[CircleTimes] t] \[CircleTimes] "Double"["XSpider"[{t, t}, {t, 1}]])]
+    Proc["Circuit"[("Double"["Spider"[{1, t}, {t, t}]] \[CircleTimes] "Double"["CircuitId"[t]]) /*
+        ("Double"["CircuitId"[t]] \[CircleTimes] "Double"["XSpider"[{t, t}, {t, 1}]])]
     ]
 ]

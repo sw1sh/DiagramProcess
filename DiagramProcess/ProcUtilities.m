@@ -127,22 +127,22 @@ doubleProc[p_Proc] := Module[{
     If[procTagQ[p, "double"], Return[p]];
     cp = dualProc @ conjugateProc[p];
     q = CircleTimes[cp, mapProcLabel["Doubled", p]];
-    If[ Length[procOutput[q]] > 0,
-        Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p]]], pi},
-            pi = permutationProc[perm, Join[procOutput[cp], procOutput[p]]];
+    If[ Length[procOutput[q, True]] > 0,
+        Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p, True]]], pi},
+            pi = permutationProc[perm, Join[procOutput[cp, True], procOutput[p, True]]];
             If[! OrderedQ[PermutationList[perm]],
                 q = pi @* q;
             ];
-            q = Apply[CircleTimes, Apply[curryProc] /@ Partition[procOutput[pi], 2]] @* q
+            q = Apply[CircleTimes, Apply[curryProc] /@ Partition[procOutput[pi, True], 2]] @* q
         ]
     ];
-    If[ Length[procInput[q]] > 0,
-        Module[{perm = doublePermutation[Length[procInput[p]]], pi},
-            pi = permutationProc[perm, Permute[Join[procInput[cp], procInput[p]], perm]];
+    If[ Length[procInput[q, True]] > 0,
+        Module[{perm = doublePermutation[Length[procInput[p, True]]], pi},
+            pi = permutationProc[perm, Permute[Join[procInput[cp, True], procInput[p, True]], perm]];
             If[! OrderedQ[PermutationList[perm]],
                 q = q @* pi
             ];
-            q = q @* Apply[CircleTimes, Apply[uncurryProc] /@ Partition[procInput[pi], 2]]
+            q = q @* Apply[CircleTimes, Apply[uncurryProc] /@ Partition[procInput[pi, True], 2]]
         ];
 
     ];

@@ -20,20 +20,23 @@ PackageScope["shiftVertices"]
 graphVertexCoordinates[g_Graph] := AssociationThread[VertexList[g] -> AnnotationValue[g, VertexCoordinates]]
 
 
+graphBox[coordinates_Association, sizes_Association] := {
+    MapThread[Min, Values @ Merge[{coordinates, sizes}, #[[1]] - #[[2]] / 2 &]],
+    MapThread[Max, Values @ Merge[{coordinates, sizes}, #[[1]] + #[[2]] / 2 &]]
+}
+
 graphBox[g_Graph] := With[{
-    vertexSizes = AnnotationValue[g, VertexSize],
-    vertexCoordinates = graphVertexCoordinates[g]},
-    {
-        MapThread[Min, Values @ Merge[{vertexCoordinates, vertexSizes}, #[[1]] - #[[2]] / 2 &]],
-        MapThread[Max, Values @ Merge[{vertexCoordinates, vertexSizes}, #[[1]] + #[[2]] / 2 &]]
-    }
+    vertexSizes = Association @ AnnotationValue[g, VertexSize],
+    vertexCoordinates = graphVertexCoordinates[g]
+},
+    graphBox[vertexCoordinates, vertexSizes]
 ]
 
 
-graphSize[g_Graph] := ReverseApplied[Subtract] @@ graphBox[g]
+graphSize[args__] := ReverseApplied[Subtract] @@ graphBox[args]
 
 
-graphCenter[g_Graph] := Mean /@ Transpose[graphBox[g]]
+graphCenter[args__] := Mean /@ Transpose[graphBox[args]]
 
 
 scaleVertices[g_Graph, scale_] := Annotate[g, VertexSize -> MapAt[# * scale &, AnnotationValue[g, VertexSize], {All, 2}]]

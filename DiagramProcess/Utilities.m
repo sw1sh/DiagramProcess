@@ -4,6 +4,7 @@ PackageScope["getLabel"]
 PackageScope["wrap"]
 PackageScope["unWrap"]
 PackageScope["enumerate"]
+PackageScope["reorder"]
 PackageScope["unLabel"]
 PackageScope["unLabelAll"]
 PackageScope["positionIn"]
@@ -52,6 +53,9 @@ enumerateOccurrences[l_List] := Fold[SubsetMap[Range @* Length, #1, Position[##]
 
 columnMap[f_, l_] := Fold[SubsetMap[f, #1, {All, #2}] &, l, Range[Min[Length /@ l]]]
 columnMap[_, {}] := {}
+
+
+reorder[xs_, ys_] := With[{zs = Range[Length @ xs]}, {zs, ys /. Thread[xs -> zs]}]
 
 
 positionIn[x_List, y_List] := With[{positions = LongestCommonSubsequencePositions[x, y]},

@@ -68,7 +68,9 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         VertexLabels -> If[! unlabeledProcQ[p], Placed[vertexLabel, Center], None],
         VertexShapeFunction -> Module[{shapeFun, outlineShapeFun}, With[{
                 pIn = procInput[p, True], pOut = procOutput[p, True],
+                qIn = procInput[q, True], qOut = procOutput[q, True],
                 pInArity = procInArity[p, True], pOutArity = procOutArity[p, True],
+                qInArity = procInArity[q, True], qOutArity = procOutArity[q, True],
                 inArity = Length[in], outArity = Length[out],
                 productWidth = OptionValue["ProductWidth"] /. Automatic -> 1 / 10,
                 arrowPos = OptionValue["ArrowPosition"] /. Automatic -> 0.5,
@@ -86,7 +88,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                     True,
                     "Trapezoid"
                 ],
-                posScale = With[{size = vertexSize}, If[procTagQ[q, "spider"], #1 + Normalize[#2] size, #1 + #2] &]
+                posScale = With[{size = vertexSize}, If[procTagQ[q, "spider"], #1 + Normalize[#2] size / 2, #1 + #2] &]
         },
         outlineShapeFun = procShape[#1, #3[[1]], #3[[2]], "Shape" -> shape] &;
 
@@ -102,7 +104,8 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[First @ in] == 2, Thickness[Large], Thickness[Medium]]},
                     Function @ {
                         Black,
-                        Wire[#1 + {0, - #3[[2]] / 2}, #1 + {0, #3[[2]] / 2}, "",
+                        Wire[Sequence @@ If[procTagQ[p, "circuit"] && (typeArity[pIn[[1]]] typeArity[pOut[[-1]]] > 0),
+                            {#1 + {- #3[[2]] / 2, 0}, #1 + {#3[[2]] / 2, 0}}, {#1 + {0, - #3[[2]] / 2}, #1 + {0, #3[[2]] / 2}}], "",
                              "ArrowSize" -> dir, "ArrowPosition" -> arrowPos,
                              "Multiply" -> multiply, "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
                              "Style" -> style]
@@ -128,14 +131,19 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 ],
 
                 procTagQ[p, "permutation"],
-                With[{xs = Range @ Length @ in},
+                With[{xs = Range @ Length @ pIn,
+                      empties = First /@ Position[pIn, t_ /; typeArity[t] == 0],
+                      in = If[procTagQ[p, "circuit"], in, pIn],
+                      inArity = If[procTagQ[p, "circuit"], inArity, pInArity],
+                      outArity = If[procTagQ[p, "circuit"], outArity, pOutArity],
+                      perm = InversePermutation @ If[procTagQ[p, "double"], procData[procData[p]["Double"]], procData[p]]["Permutation"]},
                     Function[{coord, v, size},
                         MapThread[Function[{fromIndex, toIndex}, With[{
                             fromShift = {edgeSideShift[fromIndex, size, inArity], - size[[2]] / 2} ,
                             toShift = {edgeSideShift[toIndex, size, outArity], size[[2]] / 2},
-                            dir = (1 - 2 Boole @ dualTypesQ[v[[2, fromIndex]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]],
-                            multiply = With[{arity = typeArity[v[[2, fromIndex]]]}, If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity]],
-                            style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[v[[2, fromIndex]]] == 2, Thickness[Large], Thickness[Medium]]
+                            dir = (1 - 2 Boole @ dualTypesQ[in[[fromIndex]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]],
+                            multiply = With[{arity = typeArity[in[[fromIndex]]]}, If[TrueQ[OptionValue["ThickDoubleWire"]] && arity == 2, 1, arity]],
+                            style = If[TrueQ[OptionValue["ThickDoubleWire"]] && typeArity[in[[fromIndex]]] == 2, Thickness[Large], Thickness[Medium]]
                         },
                         {
                             Black,
@@ -145,7 +153,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                                  "Style" -> style]
                         }
                         ]
-                        ], {xs, Permute[xs, InversePermutation @ If[procTagQ[v, "double"], procData[procData[v]["Double"]], procData[v]]["Permutation"]]}]
+                        ], If[procTagQ[p, "circuit"], reorder @@ DeleteCases[#, Alternatives @@ empties, All] &, Identity] @ {xs, Permute[xs, perm]}]
                     ]
                 ],
 
@@ -165,24 +173,26 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 ]],
 
                 procTagQ[q, "curry"],
-                With[{arities = typeArity /@ pIn},
-                With[{n = Length @ pIn,
+                With[{arities = typeArity /@ qIn},
+                With[{n = Length @ qIn,
                       multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && # == 2, 1, #] & /@ arities,
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && # == 2, Thickness[Large], Thickness[Medium]] & /@ arities,
-                      dir = (1 - 2 Boole @ dualTypesQ[pOut[[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
-                Function[{coord, v, size}, {
-                    Black,
-                    Table[
-                        Wire[coord + {edgeSideShift[i, size, n], - size[[2]] / 2},
-                             coord + {edgeSideShift[i, {1, 1}, n] productWidth, size[[2]] / 2}, "",
+                      dir = (1 - 2 Boole @ dualTypesQ[qOut[[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
+                With[{table = Table[
+                        Inactivate[Wire[#1 + {edgeSideShift[i, #3, n], - #3[[2]] / 2},
+                             #1 + {edgeSideShift[i, {1, 1}, n] productWidth, #3[[2]] / 2}, "",
                              "ArrowSize" -> dir[[i]], "ArrowPosition" -> arrowPos,
                              "Multiply" -> multiplicity[[i]], "MultiplyWidthIn" -> productWidth, "MultiplyWidthOut" -> productWidth,
                              "Style" -> style[[i]]
-                        ],
+                        ], Part | Plus | Times],
                         {i, n}
                     ]
+                },
+                Activate @ Function[{
+                    Black,
+                    table
                 }]
-                ]]
+                ]]]
                 ,
 
                 procTagQ[q, "discard"],
@@ -228,11 +238,11 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
             faceForm = If[! MissingQ[procData[p]["Basis"]], FaceForm[Gray], FaceForm[Transparent]],
             inLabels = Table[If[typeArity[pIn[[i]]] > 0, Inactivate[
                 With[{pos = posScale[#1, {
-                    If[ procTagQ[p, "circuit"],
+                    If[ procTagQ[q, "circuit"],
                         If[ i == 1, - #3[[1]] / 2,
                             edgeSideShift[i - 1, #3, pInArity - 1]
                         ],
-                        edgeSideShift[i, #3, procInArity[p, True]]
+                        edgeSideShift[i, #3, pInArity]
                     ],
                     If[procTagQ[p, "circuit"] && i == 1, 0, - #3[[2]] / 2]
                     }
@@ -250,10 +260,10 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
             outLabels = Table[If[typeArity[pOut[[i]]] > 0, Inactivate[
                 With[{pos = posScale[#1, {
                     If[ procTagQ[p, "circuit"],
-                        If[ i == procOutArity[p, True], #3[[1]] / 2,
+                        If[ i == pOutArity, #3[[1]] / 2,
                             edgeSideShift[i, #3, pOutArity - 1]],
-                            edgeSideShift[i, #3, procOutArity[p, True]]],
-                        If[procTagQ[p, "circuit"] && i == procOutArity[p, True], 0, #3[[2]] / 2]
+                            edgeSideShift[i, #3, pOutArity]],
+                        If[procTagQ[p, "circuit"] && i == pOutArity, 0, #3[[2]] / 2]
                         }
                     ]},
                     {
@@ -435,6 +445,13 @@ ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[
             procs
         ]]],
         Partition[shiftedGraphs, 2, 1]
+    ];
+    Scan[With[{
+        shift = graphCenter[newVertexCoordinates[[Key /@ VertexList[#]]],
+            Association[# -> If[procTagQ[#, "circuit"], {1, 1}, newVertexSize[#]] & /@ VertexList[#]]]
+    },
+        newVertexCoordinates[#] -= {shift[[1]], 0} & /@ VertexList[#]] &,
+        shiftedGraphs
     ];
     withProcGraphEdgeShapeFunction[
         Graph[Catenate @ vertices, allEdges,
