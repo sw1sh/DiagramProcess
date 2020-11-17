@@ -108,7 +108,8 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
                 from + {shiftIn, 0}, from + {shiftIn, OptionValue["VerticalShift"]},
                 from + {shiftIn + OptionValue["HorizontalShift"], OptionValue["VerticalShift"]},
                 (from + to) / 2 + {(shiftIn + shiftOut) / 2 + OptionValue["HorizontalShift"], 0},
-                to + {shiftOut + OptionValue["HorizontalShift"], - 1}, to + {shiftOut, - OptionValue["VerticalShift"]}, to + {shiftOut, 0}}
+                to + {shiftOut + OptionValue["HorizontalShift"], - 1},
+                to + {shiftOut, - OptionValue["VerticalShift"]}, to + {shiftOut, 0}}
             ]],
             "DownArc",
             Arrow[BSplineCurve[{

@@ -7,6 +7,7 @@ PackageExport["simplifyProcGraph"]
 Options[ProcGraph] = {
     "ComposeDistance" -> Automatic,
     "ParallelComposeDistance" -> Automatic,
+    "CircuitDistance" -> 1,
     "ProductWidth" -> Automatic,
     "AddTerminals" -> False,
     "OutlineProcess" -> False,
@@ -45,7 +46,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
     vertexLabel = If[TrueQ[OptionValue["ShowProcessLabels"]], stripProcLabel @ procLabel[p], ""];
     vertexCoords = {0, 0};
     vertexSize = MapAt[Min[Replace[#, Automatic -> 1], 1] & ,
-        MapAt[Replace[Automatic -> Max[procArity[p], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
+        MapAt[Replace[Automatic -> Max[procArity[p, ! procTagQ[p, "circuit"]], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
         2
     ];
     If[ procTagQ[p, "initial" | "terminal"],
@@ -164,11 +165,11 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 ]],
 
                 procTagQ[q, "curry"],
-                With[{arities = typeArity /@ in},
-                With[{n = Length @ in,
+                With[{arities = typeArity /@ pIn},
+                With[{n = Length @ pIn,
                       multiplicity = If[TrueQ[OptionValue["ThickDoubleWire"]] && # == 2, 1, #] & /@ arities,
                       style = If[TrueQ[OptionValue["ThickDoubleWire"]] && # == 2, Thickness[Large], Thickness[Medium]] & /@ arities,
-                      dir = (1 - 2 Boole @ dualTypesQ[out[[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
+                      dir = (1 - 2 Boole @ dualTypesQ[pOut[[1]]]) Boole[TrueQ[OptionValue["ShowProcessArrows"]]]},
                 Function[{coord, v, size}, {
                     Black,
                     Table[
@@ -225,13 +226,13 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         With[{
             fun = shapeFun,
             faceForm = If[! MissingQ[procData[p]["Basis"]], FaceForm[Gray], FaceForm[Transparent]],
-            inLabels = Inactivate[Table[
+            inLabels = Table[If[typeArity[pIn[[i]]] > 0, Inactivate[
                 With[{pos = posScale[#1, {
                     If[ procTagQ[p, "circuit"],
                         If[ i == 1, - #3[[1]] / 2,
                             edgeSideShift[i - 1, #3, pInArity - 1]
                         ],
-                        edgeSideShift[i, #3, procInArity[p]]
+                        edgeSideShift[i, #3, procInArity[p, True]]
                     ],
                     If[procTagQ[p, "circuit"] && i == 1, 0, - #3[[2]] / 2]
                     }
@@ -243,29 +244,27 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                             Nothing
                         ]
                     }
-                ],
-                    {i, Range[pInArity]}
-                ], Plus | Part | Times
+                ], Plus | Part | Times], {}],
+                {i, Range[pInArity]}
             ],
-            outLabels = Inactivate[Table[
+            outLabels = Table[If[typeArity[pOut[[i]]] > 0, Inactivate[
                 With[{pos = posScale[#1, {
                     If[ procTagQ[p, "circuit"],
                         If[ i == procOutArity[p, True], #3[[1]] / 2,
                             edgeSideShift[i, #3, pOutArity - 1]],
-                            edgeSideShift[i, #3, procOutArity[p]]],
+                            edgeSideShift[i, #3, procOutArity[p, True]]],
                         If[procTagQ[p, "circuit"] && i == procOutArity[p, True], 0, #3[[2]] / 2]
                         }
                     ]},
                     {
                         Point[pos],
-                        If[ TrueQ @ OptionValue["ShowWireLabels"],
+                        If[ TrueQ[OptionValue["ShowWireLabels"]],
                             Text[Style[pOut[[i]], Bold, Black, FontSize -> Small], pos + {1, 1} / 8],
                             Nothing
                         ]
                     }
-                ],
-                    {i, Range[pOutArity]}],
-                Plus | Part | Times
+                ], Plus | Part | Times], {}],
+                {i, Range[pOutArity]}
             ]
         },
             With[{shapeFunBody = {
@@ -297,7 +296,7 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
     graphs, size,
     graphWidths, graphHeights,
     wideProcPositions, qs,
-    composeDistance, parallelComposeDistance,
+    parallelComposeDistance,
     vertices, edges,
     vertexSize, vertexCoordinates,
     vertexXShifts, vertexYShifts, vertexCoordinateShifts,
@@ -315,14 +314,10 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
             1
         ]
     },
-        graphs = MapThread[If[procTagQ[#1, "circuit"], #4, ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * If[#3 > 1, scaleWidth, 1], Max[graphHeights]}, opts]] &,
+        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * If[#3 > 1, scaleWidth, 1], Max[graphHeights]}, opts] &,
             {{ps}, graphWidths, procArity /@ {ps}, graphs}
         ];
         {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
-    ];
-    composeDistance = If[size[[2]] === Automatic,
-        Replace[OptionValue["ComposeDistance"], Automatic -> 1],
-        Max[(size[[2]] - Total[graphHeights]) / (Length[{ps}] - 1), 0]
     ];
     parallelComposeDistance = Replace[OptionValue["ParallelComposeDistance"], Automatic -> If[size[[1]] =!= Automatic,
         Max[(size[[1]] - Total[graphWidths]) / (Length[{ps}] - 1), 0],
@@ -352,17 +347,24 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
     shiftedGraphs = MapThread[shiftVertices[#1, {0, #2[[2]]}] &, {shiftedGraphs, Minus @* graphCenter /@ shiftedGraphs}];
     newVertexCoordinates = Association[graphVertexCoordinates /@ shiftedGraphs];
     newVertexSize = Association @ vertexSize;
-    Scan[Apply @ Function @
-        If[ procTagQ[#1, "circuit"] && procTagQ[#2, "circuit"],
-            newVertexCoordinates[#2] = newVertexCoordinates[#1] + {
-                newVertexSize[#1][[1]] / 2 + newVertexSize[#2][[1]] / 2 + composeDistance,
-                - newVertexSize[#1][[2]] / 2 - newVertexSize[#2][[2]] / 2 - composeDistance
-            }
+    Scan[
+        Apply @ Function @ With[{
+            bottomLeftCorner = First @ SortBy[VertexList[#1], newVertexCoordinates],
+            bottomRightCorner = Last @ SortBy[VertexList[#1], newVertexCoordinates[#] {1, -1} &],
+            topLeftCorner = First @ SortBy[VertexList[#2], newVertexCoordinates[#] {1, -1} &],
+            procs = VertexList[#2]},
+        With[{shift = newVertexCoordinates[bottomRightCorner] - newVertexCoordinates[topLeftCorner]},
+        Scan[Function[{proc},
+            If[ procTagQ[proc, "circuit"] && procTagQ[bottomRightCorner, "circuit"] && procTagQ[topLeftCorner, "circuit"],
+                newVertexCoordinates[proc] = newVertexCoordinates[proc] + shift + OptionValue["CircuitDistance"] {1, - 1};
+            ]
         ],
-        Partition[{ps}, 2, 1]
+            procs
+        ]]],
+        Partition[shiftedGraphs, 2, 1]
     ];
     Graph[Catenate @ vertices, edges,
-        VertexCoordinates -> newVertexCoordinates,
+        VertexCoordinates -> Normal @ newVertexCoordinates,
         VertexSize -> Normal @ newVertexSize,
         VertexLabels -> Catenate[AnnotationValue[#, VertexLabels] & /@ graphs],
         VertexShapeFunction -> Catenate[AnnotationValue[#, VertexShapeFunction] & /@ graphs],
@@ -370,9 +372,9 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
     ]
 ]
 
-ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
+ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[ps__Proc]], ___], opts : OptionsPattern[]] := Module[{
     graphs, size,
-    composeDistance, parallelComposeDistance,
+    composeDistance,
     vertices, edges,
     graphWidths, graphHeights,
     vertexSize, vertexCoordinates,
@@ -394,10 +396,6 @@ ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[
         Replace[OptionValue["ComposeDistance"], Automatic -> 1],
         Max[(size[[2]] - Total[graphHeights]) / (Length[{ps}] - 1), 0]
     ];
-    parallelComposeDistance = Replace[OptionValue["ParallelComposeDistance"], Automatic -> If[size[[1]] =!= Automatic,
-        Max[(size[[1]] - Total[graphWidths]) / (Length[{ps}] - 1), 0],
-        1
-    ]];
     vertices = VertexList /@ graphs;
     edges = Catenate[EdgeList /@ graphs];
     vertexSize = AnnotationValue[#, VertexSize] & /@ graphs;
@@ -415,16 +413,28 @@ ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[
     shiftedGraphs = MapThread[shiftVertices[#1, {#2[[1]], 0}] &, {shiftedGraphs, Minus @* graphCenter /@ shiftedGraphs}];
     newVertexCoordinates = Association[graphVertexCoordinates /@ shiftedGraphs];
     newVertexSize = Association @ vertexSize;
-    Scan[Function @
-        If[ procTagQ[#[[1]], "circuit"] && procTagQ[#[[2]], "circuit"],
-            If[#[[3, 1]] == procOutArity[#[[1]]] && #[[3, 2]] == 1,
-                newVertexCoordinates[#[[2]]] = newVertexCoordinates[#[[1]]] + {newVertexSize[#[[1]]][[1]] / 2 + newVertexSize[#[[2]]][[1]] / 2 + composeDistance, 0}
-            ];
-            If[#[[3, 1]] < procOutArity[#[[1]]],
-                newVertexCoordinates[#[[2]]] = newVertexCoordinates[#[[1]]] + {0, newVertexSize[#[[1]]][[2]] / 2 + newVertexSize[#[[2]]][[1]] / 2 + composeDistance}
+    Scan[
+        Apply @ Function @ With[{
+            bottomLeftCorner = First @ SortBy[VertexList[#1], newVertexCoordinates],
+            bottomRightCorner = First @ SortBy[VertexList[#1], Reverse[newVertexCoordinates[#]] &],
+            topLeftCorner = First @ SortBy[VertexList[#2], newVertexCoordinates[#] {1, -1} &],
+            procs = VertexList[#2]},
+        With[{shift = newVertexCoordinates[topLeftCorner] - newVertexCoordinates[bottomLeftCorner],
+              distance = Min[DeleteCases[Differences[Sort[newVertexCoordinates[#][[2]] & /@ VertexList[#1]]], 0]] /. Infinity -> OptionValue["CircuitDistance"]
+             },
+        Scan[Function[{proc},
+            If[ procTagQ[bottomLeftCorner, "circuit"] || procTagQ[topLeftCorner, "circuit"],
+                If[ procTagQ[proc, "circuit"],
+                    newVertexCoordinates[proc] = newVertexCoordinates[proc] - shift + {0, - distance},
+                    (*Echo[{proc, topLeftCorner, bottomRightCorner, newVertexCoordinates, SortBy[VertexList[#1], newVertexCoordinates[#][[2]]]}];*)
+                    newVertexCoordinates[proc] = newVertexCoordinates[proc] -
+                     {0, (newVertexCoordinates[topLeftCorner] - newVertexCoordinates[bottomRightCorner])[[2]] + distance}
+                ]
             ]
         ],
-        Reverse @ Catenate @ inBetweenEdges
+            procs
+        ]]],
+        Partition[shiftedGraphs, 2, 1]
     ];
     withProcGraphEdgeShapeFunction[
         Graph[Catenate @ vertices, allEdges,
@@ -463,8 +473,8 @@ withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := Wit
             },
             With[{
                 dir = With[{sign = 1 - 2 Boole @ dualTypesQ[inType]}, If[dualType[inType] === outType || Total[sign] == 0, 0, sign]],
-                fromShift = If[procTagQ[v, "circuit"], If[i == procOutArity[v, True], vsize[[1]] / 2, edgeSideShift[i, vsize, procOutArity[v, True] - 1]], edgeSideShift[i, vsize, procOutArity[v]]],
-                toShift = If[procTagQ[w, "circuit"], If[j == 1, - wsize[[1]] / 2, edgeSideShift[j - 1, wsize, procInArity[w, True] - 1]], edgeSideShift[j, wsize, procInArity[w]]],
+                fromShift = If[procTagQ[v, "circuit"], If[i == procOutArity[v, True], vsize[[1]] / 2, edgeSideShift[i, vsize, procOutArity[v, True] - 1]], edgeSideShift[i, vsize, procOutArity[v, True]]],
+                toShift = If[procTagQ[w, "circuit"], If[j == 1, - wsize[[1]] / 2, edgeSideShift[j - 1, wsize, procInArity[w, True] - 1]], edgeSideShift[j, wsize, procInArity[w, True]]],
                 fromShiftY = If[procTagQ[v, "circuit"] && i == procOutArity[v, True], 0, vsize[[2]] / 2],
                 toShiftY = If[procTagQ[w, "circuit"] && j == 1, 0, wsize[[2]] / 2],
                 fromShiftScale = If[procTagQ[v, "spider"], #1 + Normalize[#2] vsize / 2 &, Plus],
@@ -483,7 +493,7 @@ withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := Wit
                         "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition, "Direction" -> "UpArc",
                         "Multiply" -> multiplicity, "MultiplyWidthIn" -> multiplyWidthIn, "MultiplyWidthOut" -> multiplyWidthOut,
                         "Style" -> style] &,
-                    vertexCoordinate[v][[2]] > vertexCoordinate[w][[2]],
+                    vertexCoordinate[v][[2]] > vertexCoordinate[w][[2]] && ! procTagQ[v, "circuit"] && ! procTagQ[w, "circuit"],
                     Wire[fromShiftScale[#1[[1]], {fromShift, fromShiftY}], toShiftScale[#1[[-1]], {toShift, - toShiftY}],
                         label,
                         "ArrowSize" -> dir, "ArrowPosition" -> arrowPosition,

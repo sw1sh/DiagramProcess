@@ -188,7 +188,7 @@ Proc /: MakeBoxes[p_Proc, form_] := Module[{in = procInput[p, True], out = procO
             ToBoxes @ Row @ in, ToBoxes @ Row @ out
         ],
     tooltip = ToBoxes[Row[{procData[p]["Id"] /. _Missing -> procLabel[p], ":",
-        If[procInArity[p], "*", Splice @ in], "\[Rule]", If[procOutArity[p] == 0, "*", Splice @ out]}], form]
+        If[procInArity[p] === 0, "*", Splice @ in], "\[Rule]", If[procOutArity[p] === 0, "*", Splice @ out]}], form]
 },
     InterpretationBox[
         boxes,

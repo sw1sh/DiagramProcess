@@ -119,7 +119,7 @@ emptyType[t_] := SystemType[t, "Dimensions" -> {}, "Field" -> CircleTimes[]]
 (* Boxes *)
 MakeBoxes[type : SystemType[_, OptionsPattern[]], form_] := With[{
     boxes = ToBoxes[typeLabel[type], form],
-    tooltip = ToBoxes[unWrap[MapThread[Superscript, {wrap[typeField[type] /. CircleTimes -> List], typeDimensions[type]}]]
+    tooltip = ToBoxes[unWrap[MapThread[Superscript, {Flatten @ wrap[typeField[type] /. CircleTimes -> List], typeDimensions[type]}]]
         /. List -> CircleTimes /. CircleTimes[] -> 1, form]
 },
     InterpretationBox[

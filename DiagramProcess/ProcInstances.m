@@ -115,7 +115,7 @@ spiderProc[n_, m_, t_] := spiderProc[0, n, m, t]
 zSpiderProc[args__] := With[{p = spiderProc[args]}, If[procData[p]["Phase"] === 0, p, unsetProcTag[p, "topological"]]]
 
 xSpiderProc[args__] := Module[{
-    p = zSpiderProc[args],
+    p = mapProcLabel[If[# === "\[EmptyCircle]", "\[FilledCircle]", #] & , zSpiderProc[args]],
     t,
     dim
 },
@@ -126,7 +126,7 @@ xSpiderProc[args__] := Module[{
 
 xBasis[ts_List] := Map[
     With[{dim = Times @@ typeDimensions[#1]},
-        Table[ProcMatrix[zSpiderProc[j Most[Subdivide[2 Pi, dim]], 0, 1, #]] / Sqrt[dim], {j, dim}]
+        Table[ProcMatrix[zSpiderProc[j Subdivide[2 Pi, dim][[2 ;; -2]], 0, 1, #]] / Sqrt[dim], {j, dim, 1, -1}]
     ] &,
     SystemType /@ ts
 ]
@@ -215,3 +215,8 @@ Proc["CNOT"[t_]] := mapProcLabel["CNOT" &,
     Proc["Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "SpiderId"[t]) /* ("SpiderId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
 ]
 
+Proc["QCNOT"[t_]] := mapProcLabel["CNOT" &,
+    Proc["Circuit"[("Double"["Spider"[{1, t}, {t, t}]] \[CircleTimes] "SpiderId"[SuperStar[t] \[CircleTimes] t]) /*
+        ("SpiderId"[SuperStar[t] \[CircleTimes] t] \[CircleTimes] "Double"["XSpider"[{t, t}, {t, 1}]])]
+    ]
+]

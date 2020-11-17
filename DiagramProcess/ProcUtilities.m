@@ -16,9 +16,9 @@ PackageExport["unCompositeProc"]
 PackageExport["doubleProc"]
 PackageExport["unDoubleProc"]
 
-PackageScope["mapProcLabel"]
-PackageScope["setProcTag"]
-PackageScope["unsetProcTag"]
+PackageExport["mapProcLabel"]
+PackageExport["setProcTag"]
+PackageExport["unsetProcTag"]
 
 PackageScope["procRotatedQ"]
 PackageScope["compatibleProcsQ"]
@@ -126,7 +126,7 @@ doubleProc[p_Proc] := Module[{
 },
     If[procTagQ[p, "double"], Return[p]];
     cp = dualProc @ conjugateProc[p];
-    q = CircleTimes[cp, p];
+    q = CircleTimes[cp, mapProcLabel["Doubled", p]];
     If[ Length[procOutput[q]] > 0,
         Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p]]], pi},
             pi = permutationProc[perm, Join[procOutput[cp], procOutput[p]]];
@@ -168,10 +168,10 @@ flattenProc[p_Proc] := p //. Map[
 
 
 composeProcs[p_Proc, q_Proc] := Module[{
-    fIn = Select[procInput[p], typeArity[#] > 0 &],
-    fOut = Select[procOutput[p], typeArity[#] > 0 &],
-    gIn = Select[procInput[q], typeArity[#] > 0 &],
-    gOut = Select[procOutput[q], typeArity[#] > 0 &]
+    fIn = procInput[p],
+    fOut = procOutput[p, True],
+    gIn = procInput[q, True],
+    gOut = procOutput[q]
 },
     Which[
         fIn === gOut,
