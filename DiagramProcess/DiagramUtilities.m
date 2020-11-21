@@ -139,7 +139,7 @@ Wire[from : {a_, b_}, to : {c_, d_}, label_, OptionsPattern[]] := {
 }
 
 
-edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[w - 1, 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2)
+edgeSideShift[i_, {w_ ? NumericQ, _}, arity_] := Max[3 / 4 (w - 1), 1 / 2] / Max[arity - 1, 1] * ((i - 1) - (arity - 1) / 2)
 
 
 betweenEdges[p_Proc, q_Proc] := With[{

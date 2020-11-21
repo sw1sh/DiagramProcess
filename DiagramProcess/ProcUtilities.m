@@ -146,7 +146,7 @@ doubleProc[p_Proc] := Module[{
         ];
 
     ];
-    setProcTag[setProcData[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procData[p], "Double" -> p]], "double"]
+    unsetProcTag[setProcTag[setProcData[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procData[p], "Double" -> p]], "double"], "circuit"]
 ]
 
 
@@ -168,28 +168,28 @@ flattenProc[p_Proc] := p //. Map[
 
 
 composeProcs[p_Proc, q_Proc] := Module[{
-    fIn = procInput[p],
-    fOut = procOutput[p, True],
-    gIn = procInput[q, True],
-    gOut = procOutput[q]
+    pIn = procInput[p],
+    pOut = procOutput[p, True],
+    qIn = procInput[q, True],
+    qOut = procOutput[q]
 },
     Which[
-        fIn === gOut,
-        Proc[Defer[p @* q], gIn, fOut, <|"Tags" -> {"composition"}|>],
+        pIn === qOut,
+        Proc[Defer[p @* q], qIn, pOut, <|"Tags" -> {"composition"}|>],
 
         True,
         Module[{
             in, out,
-            F, G, perm
+            P, Q, perm
         },
-        in = With[{l = ResourceFunction["MultisetComplement"][gOut, fIn]}, Insert[l, Splice[fIn], FirstPosition[l, First[fIn, None]] /. _Missing -> -1]];
-        out = With[{l = ResourceFunction["MultisetComplement"][fIn, gOut]}, Insert[l, Splice[gOut], FirstPosition[l, First[gOut, None]] /. _Missing -> 1]];
-        F = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][in, fIn], p, FirstPosition[in, First[fIn, None]] /. _Missing -> -1];
-        G = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][out, gOut], q, FirstPosition[out, First[gOut, None]] /. _Missing -> 1];
-        perm = FindPermutation[F[[2]], G[[3]]];
+        in = With[{l = ResourceFunction["MultisetComplement"][qOut, pIn]}, Insert[l, Splice[pIn], FirstPosition[l, First[pIn, None]] /. _Missing -> -1]];
+        out = With[{l = ResourceFunction["MultisetComplement"][pIn, qOut]}, Insert[l, Splice[qOut], FirstPosition[l, First[qOut, None]] /. _Missing -> 1]];
+        P = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][in, pIn], p, FirstPosition[in, First[pIn, None]] /. _Missing -> -1];
+        Q = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][out, qOut], q, FirstPosition[out, First[qOut, None]] /. _Missing -> 1];
+        perm = FindPermutation[procInput[P], procOutput[Q]];
         If[OrderedQ @ PermutationList[perm],
-            F @* G,
-            F @* permutationProc[perm, G[[3]]] @* G
+            P @* Q,
+            P @* permutationProc[perm, procOutput[Q]] @* Q
         ]
         ]
    ]

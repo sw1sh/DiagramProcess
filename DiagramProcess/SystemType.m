@@ -8,6 +8,7 @@ PackageScope["dualType"]
 PackageScope["reverseType"]
 PackageScope["typeArity"]
 PackageScope["typeDimensions"]
+PackageScope["typeDimension"]
 PackageScope["typeBasis"]
 PackageScope["typeList"]
 PackageScope["typeLabel"]
@@ -89,6 +90,8 @@ dualTypesQ[t_SystemType] := {dualTypeQ[t]}
 
 
 typeDimensions[t_SystemType] := t["Dimensions"]
+
+typeDimension[t_SystemType] := Times @@ typeDimensions[t]
 
 
 typeField[t_SystemType] := t["Field"]

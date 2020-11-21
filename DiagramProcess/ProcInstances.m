@@ -28,8 +28,8 @@ PackageScope["encodeProc"]
 
 
 withTerminals[p_Proc] := Module[{
-    in = procInput[p],
-    out = procOutput[p],
+    in = procInput[p, True],
+    out = procOutput[p, True],
     q,
     initial, terminal
 },
@@ -72,10 +72,10 @@ permutationProc[perm_Cycles, in_List] := With[{
 swapProc[A_, B_] := permutationProc[Cycles[{{1, 2}}], {A, B}]
 
 
-cupProc[out_] := Proc[Labeled["Cup", "\[Union]"], {}, {dualType @ SystemType[out], SystemType[out]}, <|"Tags" -> {"cup", "topological"}, "Id" -> Unique["cup"]|>]
+cupProc[out__] := Proc[Labeled["Cup", "\[Union]"], {}, {Sequence @@ dualType @* SystemType /@ Reverse[{out}], Sequence @@ SystemType /@ {out}}, <|"Tags" -> {"cup", "topological"}, "Id" -> Unique["cup"]|>]
 
 
-capProc[in_] := mapProcLabel["\[Intersection]" &, adjointProc[dualProc @ cupProc[in]]]
+capProc[in__] := mapProcLabel["\[Intersection]" &, adjointProc[dualProc @ cupProc[in]]]
 
 
 copyProc[in_, n_ : 2] := Proc[Labeled[Table[#, n] &, "copy"], {SystemType[in]}, Table[SystemType[in], n], <|"Tags" -> {"spider", "topological"}, "Id" -> Unique["copy"]|>]
@@ -165,9 +165,9 @@ Proc["Empty"] := emptyProc[]
 
 Proc[("Identity" | "Id" | "\[Delta]")[a_]] := identityProc[a]
 
-Proc[("Cap" | "\[Intersection]" | "\[Cap]")[a_]] := capProc[a]
+Proc[("Cap" | "\[Intersection]" | "\[Cap]")[a__]] := capProc[a]
 
-Proc[("Cup" | "\[Union]" | "\[Cup]")[a_]] := cupProc[a]
+Proc[("Cup" | "\[Union]" | "\[Cup]")[a__]] := cupProc[a]
 
 Proc["Permutation"[perm_Cycles, in_List]] := permutationProc[perm, in]
 
@@ -211,12 +211,16 @@ Proc["Decoherence"[a_]] := encodeProc[a] @* measureProc[a]
 
 Proc["LeviCevita"[n_Integer, t_]] := Proc[Labeled[LeviCivitaTensor[n], "\[CurlyEpsilon]"], Table[SystemType[t, "Dimensions" -> {n}], n], {}, <|"Id" -> Unique["levicevita"], "Tags" -> {}|>]
 
-Proc["CNOT"[t_]] := mapProcLabel["CNOT" &,
-    Proc["Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "CircuitId"[t]) /* ("CircuitId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
+Proc["CNOT"[a_]] := With[{t = SystemType[a]},
+    mapProcLabel["CNOT" &,
+        Proc[Labeled[Sqrt[typeDimension[t]], Sqrt[typeDimension[t]]] \[CircleTimes] "Circuit"[("Spider"[{1, t}, {t, t}] \[CircleTimes] "CircuitId"[t]) /* ("CircuitId"[t] \[CircleTimes] "XSpider"[{t, t}, {t, 1}])]]
+    ]
 ]
 
-Proc["QCNOT"[t_]] := mapProcLabel["CNOT" &,
-    Proc["Circuit"[("Double"["Spider"[{1, t}, {t, t}]] \[CircleTimes] "Double"["CircuitId"[t]]) /*
-        ("Double"["CircuitId"[t]] \[CircleTimes] "Double"["XSpider"[{t, t}, {t, 1}]])]
+Proc["QCNOT"[a_]] := With[{t = SystemType[a]},
+    mapProcLabel["CNOT" &,
+        Proc[typeDimension[t] \[CircleTimes] "Circuit"[("Double"["Spider"[{1, t}, {t, t}]] \[CircleTimes] "Double"["CircuitId"[t]]) /*
+            ("Double"["CircuitId"[t]] \[CircleTimes] "Double"["XSpider"[{t, t}, {t, 1}]])]
+        ]
     ]
 ]
