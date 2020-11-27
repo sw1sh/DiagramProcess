@@ -5,6 +5,7 @@ PackageExport["Proc"]
 PackageScope["procInterpretation"]
 PackageScope["procInput"]
 PackageScope["procOutput"]
+PackageScope["procTypes"]
 PackageScope["procTags"]
 PackageScope["procLabel"]
 PackageScope["procTagQ"]
@@ -122,13 +123,14 @@ procLabel[Proc[Defer[CircleTimes[ps__]], __]] := CircleTimes @@ Map[procLabel, {
 
 procLabel[Proc[Defer[Plus[ps__]], __]] := Inactive[Plus] @@ Map[procLabel, {ps}]
 
-procLabel[Proc[f_, __]] := getLabel[f]
+procLabel[p : Proc[f_, __]] := Tooltip[getLabel[f], Row[{procInput[p, True], "\[RightArrow]", procOutput[p, True]}]]
 
 
 procInput[Proc[_, in_, ___], includeEmpty_ : False] := If[includeEmpty, in, Select[in, typeArity[#] > 0 &]]
 
-
 procOutput[Proc[_, _, out_, ___], includeEmpty_ : False] := If[includeEmpty, out, Select[out, typeArity[#] > 0 &]]
+
+procTypes[p_Proc, includeEmpty_ : False] := Join[procOutput[p, includeEmpty], procInput[p, includeEmpty]]
 
 
 procTags[p_Proc] := procData[p]["Tags"]

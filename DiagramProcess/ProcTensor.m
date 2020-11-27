@@ -16,23 +16,34 @@ ProcTensor[p : Proc[_Labeled, ___]] := ProcTensor[MapAt[unLabel, p, {1}]]
 ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
     in = procInput[p], out = procOutput[p],
     interpretation = procInterpretation[p],
-    inDimensions, outDimensions, dimensions,
+    inDimensions, pInDimensions, outDimensions, dimensions,
     tensor
 },
-    inDimensions = procInputDimensions[p];
-    outDimensions = procOutputDimensions[p];
-    dimensions = procDimensions[p];
+    inDimensions = procInputDimensions[p, True];
+    pInDimensions = typeDimension /@ procInput[p, True];
+    outDimensions = procOutputDimensions[p, True];
+    dimensions = procDimensions[p, True];
     tensor = Which[
         procTagQ[p, "id" | "curry"],
         IdentityMatrix[Times @@ inDimensions],
 
         procTagQ[p, "permutation"],
-        TensorTranspose[ArrayReshape[IdentityMatrix[Times @@ inDimensions], dimensions], procData[p]["Permutation"]],
+        With[{id = ArrayReshape[KroneckerProduct @@ IdentityMatrix /@ pInDimensions, Join[pInDimensions, pInDimensions]]},
+            TensorTranspose[id, procData[p]["Permutation"]]
+        ],
 
-        (* classical and bastard spider *)
-        procTagQ[p, "spider" | "cup" | "discard"] && SameQ @@ typeDimensions /@ Flatten @ Join[typeList /@ out, typeList /@ in] && Length[dimensions] > 0,
+        procTagQ[p, "cup"],
+        With[{basis = typeBasis[First @ Join[out, in], True, True]},
+            Total[kroneckerProduct[#, #] & /@ basis]
+        ],
+
+        procTagQ[p, "spider"  | "discard"] && SameQ @@ typeDimensions /@ Flatten @ Join[typeList /@ out, typeList /@ in] && Length[dimensions] > 0,
         With[{dim = First @ typeDimensions @ First @ Join[out, in]},
-        With[{phase = If[MissingQ[procData[p]["Phase"]], Table[1, dim], Prepend[Exp[I wrap[procData[p]["Phase"]]], 1]]},
+        With[{phase = If[MissingQ[procData[p]["Phase"]], Table[1, dim],
+            If[ ListQ[procData[p]["Phase"]],
+                Prepend[Exp[I wrap[procData[p]["Phase"]]], 1],
+                Prepend[Table[Exp[I procData[p]["Phase"]], dim - 1], 1]
+            ]]},
             If[ MissingQ[procData[p]["Basis"]],
                 With[{basis = typeBasis[#, True, False] & /@ Join[out, in]},
                     Sum[phase[[i]] kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] - 2]]] & /@ basis), {i, dim}]
@@ -42,6 +53,9 @@ ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
                 ]
             ]
         ]],
+
+        procTagQ[p, "empty"],
+        1,
 
         ArrayQ[interpretation] && Times @@ Dimensions[interpretation] == Times @@ dimensions,
         interpretation,
@@ -63,15 +77,16 @@ ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
     If[ procTagQ[p, "dual"],
         tensor = Conjugate[tensor]
     ];
+    (*Echo[{p, dimensions, If[ ArrayQ[tensor], ArrayReshape[tensor, {Times @@ outDimensions, Times @@ inDimensions}] //MatrixForm, tensor]}];*)
     tensor
 ]
 
 ProcTensor[p : Proc[Defer[CircleTimes[ps__]], ___]] :=
-    ArrayReshape[KroneckerProduct @@ ProcMatrix /@ {ps}, procDimensions[p]]
+    ArrayReshape[KroneckerProduct @@ ProcMatrix /@ {ps}, procDimensions[p, True]]
 
 
 ProcTensor[p : Proc[Defer[Composition[ps__]], ___]] :=
-    ArrayReshape[Dot @@ ProcMatrix /@ {ps}, procDimensions[p]]
+    ArrayReshape[Dot @@ ProcMatrix /@ {ps}, procDimensions[p, True]]
 
 
 ProcTensor[Proc[Defer[Plus[ps__]], ___]] := Total[ProcTensor /@ {ps}]
@@ -79,7 +94,8 @@ ProcTensor[Proc[Defer[Plus[ps__]], ___]] := Total[ProcTensor /@ {ps}]
 
 ProcMatrix[p_Proc] := Module[{tensor = ProcTensor[p], matrix},
     matrix = If[ ArrayQ[tensor],
-        ArrayReshape[tensor, {Times @@ procOutputDimensions[p], Times @@ procInputDimensions[p]}],
+        (* Normal due to some weird bug in 12.1 *)
+        ArrayReshape[Normal @ tensor, {Times @@ procOutputDimensions[p], Times @@ procInputDimensions[p]}],
         {{tensor}}
     ];
     matrix

@@ -42,7 +42,10 @@ PackageScope["unProc"]
 
 
 
-mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[procInterpretation[p], f[procLabel[p]]]]
+mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[
+    procInterpretation[p],
+    With[{l = procLabel[p]}, If[MatchQ[l, _Tooltip], MapAt[f, l, {1}], f[l]]]
+]]
 
 
 unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {-1, Key["Tags"]}]
@@ -128,8 +131,8 @@ doubleProc[p_Proc] := Module[{
     cp = dualProc @ conjugateProc[p];
     q = CircleTimes[cp, mapProcLabel["Doubled", p]];
     If[ Length[procOutput[q, True]] > 0,
-        Module[{perm = InversePermutation @ doublePermutation[Length[procOutput[p, True]]], pi},
-            pi = permutationProc[perm, Join[procOutput[cp, True], procOutput[p, True]]];
+        Module[{perm = doublePermutation[Length[procOutput[p, True]]], pi},
+            pi = permutationProc[perm, procOutput[q, True]];
             If[! OrderedQ[PermutationList[perm]],
                 q = pi @* q;
             ];
@@ -138,7 +141,7 @@ doubleProc[p_Proc] := Module[{
     ];
     If[ Length[procInput[q, True]] > 0,
         Module[{perm = doublePermutation[Length[procInput[p, True]]], pi},
-            pi = permutationProc[perm, Permute[Join[procInput[cp, True], procInput[p, True]], perm]];
+            pi = permutationProc[InversePermutation @ perm, Permute[procInput[q, True], perm]];
             If[! OrderedQ[PermutationList[perm]],
                 q = q @* pi
             ];
@@ -186,7 +189,7 @@ composeProcs[p_Proc, q_Proc] := Module[{
         out = With[{l = ResourceFunction["MultisetComplement"][pIn, qOut]}, Insert[l, Splice[qOut], FirstPosition[l, First[qOut, None]] /. _Missing -> 1]];
         P = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][in, pIn], p, FirstPosition[in, First[pIn, None]] /. _Missing -> -1];
         Q = CircleTimes @@ Insert[identityProc /@ ResourceFunction["MultisetComplement"][out, qOut], q, FirstPosition[out, First[qOut, None]] /. _Missing -> 1];
-        perm = FindPermutation[procInput[P], procOutput[Q]];
+        perm = FindPermutation[procOutput[Q], procInput[P]];
         If[OrderedQ @ PermutationList[perm],
             P @* Q,
             P @* permutationProc[perm, procOutput[Q]] @* Q
@@ -289,8 +292,8 @@ procOut[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___], in
 procOut[p_, includeEmpty_ : False] := {p -> procOutput[p, includeEmpty]}
 
 
-procInputDimensions[p_Proc] := Catenate[typeDimensions /@ procInput[p]]
+procInputDimensions[p_Proc, includeEmpty_ : False] := Catenate[Map[typeDimension] @* typeList /@ procInput[p, includeEmpty]]
 
-procOutputDimensions[p_Proc] := Catenate[typeDimensions /@ procOutput[p]]
+procOutputDimensions[p_Proc, includeEmpty_ : False] := Catenate[Map[typeDimension] @* typeList /@ procOutput[p, includeEmpty]]
 
-procDimensions[p_Proc] := Join[procOutputDimensions[p], procInputDimensions[p]];
+procDimensions[p_Proc, includeEmpty_ : False] := Join[procOutputDimensions[p, includeEmpty], procInputDimensions[p, includeEmpty]]

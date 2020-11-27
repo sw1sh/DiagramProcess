@@ -60,12 +60,11 @@ castProc[in_, out_] := Proc[Labeled["Cast", "1"], {SystemType @ in}, {SystemType
 
 
 permutationProc[perm_Cycles, in_List] := With[{
-    ps = PermutationList[perm, Length[in]],
-    invPerm = InversePermutation @ perm,
+    ps = PermutationList[InversePermutation @ perm, Length[in]],
     inTypes = SystemType /@ in
 },
-    Proc[Labeled[Permute[{##}, invPerm] &, Subscript["\[Pi]", Row @ ps]], inTypes, Permute[inTypes, invPerm],
-         <|"Tags" -> {"permutation", "topological"}, "Id" -> Unique["pi"], "Permutation" -> invPerm|>]
+    Proc[Labeled[Permute[{##}, perm] &, Subscript["\[Pi]", Row @ ps]], inTypes, Permute[inTypes, perm],
+         <|"Tags" -> {"permutation", "topological"}, "Id" -> Unique["pi"], "Permutation" -> perm|>]
 ]
 
 
@@ -115,11 +114,11 @@ spiderProc[n_, m_, t_] := spiderProc[0, n, m, t]
 zSpiderProc[args__] := With[{p = spiderProc[args]}, If[procData[p]["Phase"] === 0, p, unsetProcTag[p, "topological"]]]
 
 xSpiderProc[args__] := Module[{
-    p = mapProcLabel[If[# === "\[EmptyCircle]", "\[FilledCircle]", #] & , zSpiderProc[args]],
+    p = mapProcLabel[If[# === "\[EmptyCircle]", Style["\[FilledCircle]", Gray], #] & , zSpiderProc[args]],
     t,
     dim
 },
-    t = First @ Join[procOutput[p], procInput[p]];
+    t = First @ typeList @ First @ procTypes[p];
     dim = Times @@ typeDimensions[p];
     setProcData[p, "Basis" -> xBasis[{t}]]
 ]
@@ -198,6 +197,10 @@ Proc["Dimension"[t_]] := dimensionProc[t]
 Proc["XSpider"[args___]] := xSpiderProc[args]
 
 Proc["ZSpider"[args___]] := zSpiderProc[args]
+
+Proc["XBasis"[args___]] := With[{p = Proc[args]},
+    replaceUnderHold[p, q_Proc /; procTagQ[q, "spider"] :> setProcData[q, "Basis" -> xBasis[{First @ typeList @ First @ procTypes[q]}]]]
+]
 
 Proc["Hadamard"[args___]] := hadamardProc[args]
 
