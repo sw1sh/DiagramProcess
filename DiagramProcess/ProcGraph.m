@@ -449,6 +449,16 @@ ProcGraph[p : Proc[Labeled[Defer[Composition[ps__Proc]], _] | Defer[Composition[
         ]]],
         Partition[shiftedGraphs, 2, 1]
     ];
+    Scan[
+        Function[
+            If[MatchQ[#[[3]], _Rule] && ! procTagQ[#[[1]], "circuit"],
+            newVertexCoordinates[#[[1]]] = {
+                newVertexCoordinates[#[[1]]][[1]],
+                newVertexCoordinates[#[[2]]][[2]] - Min[newVertexCoordinates[#[[2]]][[2]] - newVertexCoordinates[#[[1]]][[2]],
+                    If[procTagQ[#[[1]], "circuit"] || procTagQ[#[[2]], "circuit"], OptionValue["CircuitDistance"], composeDistance] + (newVertexSize[#[[1]]][[2]] + newVertexSize[#[[2]]][[2]]) / 2]
+            }]],
+        SortBy[First @* MinimalBy[newVertexCoordinates[#[[2]]][[2]] &] /@ GroupBy[allEdges, First], newVertexCoordinates[#[[1]]][[2]] &]
+    ];
     Scan[With[{
         shift = graphCenter[newVertexCoordinates[[Key /@ VertexList[#]]],
             Association[# -> If[procTagQ[#, "circuit"], {1, 1}, newVertexSize[#]] & /@ VertexList[#]]]
