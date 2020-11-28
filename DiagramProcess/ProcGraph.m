@@ -59,7 +59,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph];
     ];
-    If[ procTagQ[p, "spider" | "box" | "empty"] && ! procTagQ[p, "composite"],
+    If[ procTagQ[p, "spider" | "box" | "empty"] && ! (procTagQ[p, "composite"] && TrueQ[OptionValue["ShowComposites"]]),
         vertexSize = If[ procTagQ[p, "topological"], {1 / 4, 1 / 4}, {1 / 2, 1 / 2}]
     ];
     Graph[{Annotation[p, {

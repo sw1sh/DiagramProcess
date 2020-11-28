@@ -194,6 +194,16 @@ Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider"}]
 
 Proc["Box"[p_]] := setProcTag[Proc[p], {"box"}]
 
+Proc["SpiderBox"[a_ : Pi, t_]] := If[a === Pi, setProcTag[#, "topological"] &, Identity] @ Proc["Box" @ "Composite"[
+        "Circuit"[
+            CircleTimes["Spider"[- a / 2, {}, {t}], "Spider"[a / 2, {1, t}, {t, 1}]] /*
+            CircleTimes["Empty", "XSpider"[{t, t}, {t, 1}]] /*
+            CircleTimes["Empty", "Spider"[a / 2, {1, t}, {t, 1}]]
+        ],
+        If[a === Pi, "", a]
+    ]
+]
+
 Proc["CircuitId"[t_]] := setProcTag[spiderProc[{1, t}, {t, 1}], {"id", "circuit"}]
 
 Proc["Dimension"[t_]] := dimensionProc[t]
@@ -206,7 +216,7 @@ Proc["XBasis"[args___]] := With[{p = Proc[args]},
     replaceUnderHold[p, q_Proc /; procTagQ[q, "spider"] :> setProcData[q, "Basis" -> xBasis[{First @ typeList @ First @ procTypes[q]}]]]
 ]
 
-Proc["Hadamard"[args___]] := setProcTag[hadamardProc[args], {"box", "spider", "topological"}]
+Proc["Hadamard"[a_]] := Proc["SpiderBox"[Pi, a]]
 
 Proc["Measure"[a_]] := measureProc[a]
 
