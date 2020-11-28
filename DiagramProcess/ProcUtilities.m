@@ -110,7 +110,9 @@ dualProc[p : Proc[_, in_, out_, ___]] := With[{f = Replace[procInterpretation[p]
 ]
 
 
-compositeProc[p_Proc, label_] := setProcTag[mapProcLabel[Framed[Interpretation[label, #]] &, p], "composite"]
+compositeProc[p_Proc, label_] := With[{q = identityProc[procOutput[p]] @* p @* identityProc[procInput[p]]},
+    unsetProcTag[setProcTag[mapProcLabel[Framed[Interpretation[label, #]] &, q], "composite"], "circuit"]
+]
 
 compositeProc[p_Proc] := compositeProc[p, procLabel[p]]
 

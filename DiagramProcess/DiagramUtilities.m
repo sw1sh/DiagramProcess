@@ -64,6 +64,8 @@ procShape[coord_, w_, h_, OptionsPattern[]] := Module[{
         {{}, {w / 2, h / 2}},
         "Disk",
         {Disk[{0, 0}, {w, h} / 2], {0, 0}},
+        "Square",
+        {Rectangle[{- w / 2, - h / 2}, {w / 2, h / 2}], {0, 0}},
         _,
         {Polygon[{{0, 0}, {0, h}, {w, h}, {w - 1 / 4, 0}}], {w / 2, h / 2}}
     ];

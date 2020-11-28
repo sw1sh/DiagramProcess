@@ -55,6 +55,8 @@ zeroProc[] := Proc[Labeled[0 &, "0"], {}, {}, <|"Tags" -> {"zero"}, "Id" -> Uniq
 
 identityProc[in_] := Proc[Labeled[Identity, "1"], {SystemType @ in}, {SystemType @ in}, <|"Tags" -> {"id", "topological"}, "Id" -> Unique["id"]|>]
 
+identityProc[in_List] := mapProcLabel["1" &, permutationProc[Cycles[{{}}], in]]
+
 
 castProc[in_, out_] := Proc[Labeled["Cast", "1"], {SystemType @ in}, {SystemType @ out}, <|"Tags" -> {"cast"}, "Id" -> Unique["cast"]|>]
 
@@ -190,6 +192,8 @@ Proc["Spider"[in_List, out_List]] := setProcData[setProcTag[Proc[Subsuperscript[
 
 Proc["Spider"[p_]] := setProcTag[Proc[p], {"spider"}]
 
+Proc["Box"[p_]] := setProcTag[Proc[p], {"box"}]
+
 Proc["CircuitId"[t_]] := setProcTag[spiderProc[{1, t}, {t, 1}], {"id", "circuit"}]
 
 Proc["Dimension"[t_]] := dimensionProc[t]
@@ -202,7 +206,7 @@ Proc["XBasis"[args___]] := With[{p = Proc[args]},
     replaceUnderHold[p, q_Proc /; procTagQ[q, "spider"] :> setProcData[q, "Basis" -> xBasis[{First @ typeList @ First @ procTypes[q]}]]]
 ]
 
-Proc["Hadamard"[args___]] := hadamardProc[args]
+Proc["Hadamard"[args___]] := setProcTag[hadamardProc[args], {"box", "spider", "topological"}]
 
 Proc["Measure"[a_]] := measureProc[a]
 

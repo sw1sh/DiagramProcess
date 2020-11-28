@@ -54,12 +54,12 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         vertexSize = vertexSize {1, 0}
     ];
     If[ procTagQ[p, "composite"] && TrueQ[OptionValue["ShowComposites"]],
-        graph = ProcGraph[unCompositeProc[q], "AddTerminals" -> True, opts];
+        graph = ProcGraph[unCompositeProc[q], opts];
         vertexLabel = "";
         vertexSize = graphSize[graph];
         vertexCoords = graphCenter[graph];
     ];
-    If[ procTagQ[p, "spider"],
+    If[ procTagQ[p, "spider" | "box" | "empty"] && ! procTagQ[p, "composite"],
         vertexSize = If[ procTagQ[p, "topological"], {1 / 4, 1 / 4}, {1 / 2, 1 / 2}]
     ];
     Graph[{Annotation[p, {
@@ -77,6 +77,8 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 shape = Which[
                     procTagQ[q, "zero"],
                     "None",
+                    procTagQ[q, "box" | "empty"],
+                    "Square",
                     procTagQ[q, "spider"],
                     "Disk",
                     procArity[q] == 0,
@@ -218,7 +220,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
                 shapeFun = {EdgeForm[{Black, Opacity[1], Thick}], fun[##]} &
             ]
         ];
-        With[{fun = shapeFun, outlineFun = outlineShapeFun, scale = If[procTagQ[p, "composite"], {1.25, 1.25}, {1, 1}]},
+        With[{fun = shapeFun, outlineFun = outlineShapeFun, scale = If[procTagQ[p, "composite"], {1., 1.}, {1, 1}]},
             If[ TrueQ[OptionValue["Outline"]] && ! procTagQ[q, "initial" | "terminal"],
                 shapeFun = Function[{
                     fun[##],
