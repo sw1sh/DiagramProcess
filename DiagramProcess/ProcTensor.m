@@ -28,7 +28,7 @@ ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
         IdentityMatrix[Times @@ inDimensions],
 
         procTagQ[p, "permutation"],
-        With[{id = ArrayReshape[KroneckerProduct @@ IdentityMatrix /@ pInDimensions, Join[pInDimensions, pInDimensions]]},
+        With[{id = ArrayReshape[kroneckerProduct @@ IdentityMatrix /@ pInDimensions, Join[pInDimensions, pInDimensions]]},
             TensorTranspose[id, procData[p]["Permutation"]]
         ],
 
@@ -49,7 +49,7 @@ ProcTensor[p : Proc[Except[_Defer], ___]] := Module[{
                     Sum[phase[[i]] kroneckerProduct @@ (#[[Sequence @@ Table[i, TensorRank[#] - 2]]] & /@ basis), {i, dim}]
                 ],
                 With[{basis = First @ procData[p]["Basis"]},
-                    Sum[phase[[i]] kroneckerProduct @@ Table[basis[[i]], Length[dimensions]], {i, dim}]
+                    Sum[phase[[i]] kroneckerProduct @@ Table[basis[[i]], procTypeArity[p]], {i, dim}]
                 ]
             ]
         ]],
