@@ -11,6 +11,7 @@ PackageScope["procLabel"]
 PackageScope["procTagQ"]
 PackageScope["procData"]
 PackageScope["setProcData"]
+PackageScope["unsetProcData"]
 
 
 Options[Proc] = {}
@@ -147,6 +148,8 @@ procData[p_Proc] := p[[-1]]
 
 
 setProcData[p_Proc, data_] := MapAt[<|#, data|> &, p, {-1}]
+
+unsetProcData[p_Proc, data_] :=  MapAt[KeyDrop[data], p, {-1}]
 
 
 (* Eval Proc *)

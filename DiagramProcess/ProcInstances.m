@@ -213,8 +213,19 @@ Proc["XSpider"[args___]] := xSpiderProc[args]
 Proc["ZSpider"[args___]] := zSpiderProc[args]
 
 Proc["XBasis"[args___]] := With[{p = Proc[args]},
-    replaceUnderHold[p, q_Proc /; procTagQ[q, "spider"] :> setProcData[q, "Basis" -> xBasis[{First @ typeList @ First @ procTypes[q]}]]]
+    replaceUnderHold[p, {
+        q_Proc /; procTagQ[q, "composite"] :> setProcData[q, "Basis" -> "X"],
+        q_Proc /; procTagQ[q, "spider"] :> setProcData[q, "Basis" -> xBasis[{First @ typeList @ First @ procTypes[q]}]]
+    }]
 ]
+
+Proc["ZBasis"[args___]] := replaceUnderHold[Proc[args], q_Proc /; procTagQ[q, "spider" | "composite"] :> unsetProcData[q, "Basis"]]
+
+Proc["ToggleBasis"[args___]] := replaceUnderHold[Proc[args],
+    {
+        q_Proc /; procTagQ[q, "composite"] && !procTagQ[q, "spider"] :> If[MissingQ[procData[q]["Basis"]], setProcData[q, "Basis" -> "X"], unsetProcData[q, "Basis"]],
+        q_Proc /; procTagQ[q, "spider"] :> If[MissingQ[procData[q]["Basis"]], Proc["XBasis"[q]], Proc["ZBasis"[q]]]
+    }]
 
 Proc["Hadamard"[a_]] := Proc["SpiderBox"[Pi, a]]
 

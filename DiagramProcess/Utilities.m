@@ -83,6 +83,8 @@ replaceUnderHold[expr_, rule_] := With[{pos = SortBy[Position[expr, First @ rule
     Replace[Fold[ReplacePart, expr, Thread[pos -> Map[Replace[rule], Extract[expr, pos]]]], rule]
 ]
 
+replaceUnderHold[expr_, rules_List] := Fold[replaceUnderHold, expr, rules]
+
 replaceUnderHold[rule_] := Function[expr, replaceUnderHold[expr, rule]]
 
 
