@@ -50,6 +50,8 @@ mapProcLabel[f_, p_Proc] := ReplacePart[p, 1 -> Labeled[
 
 unsetProcTag[p_Proc, tag_] := MapAt[DeleteCases[tag], p, {-1, Key["Tags"]}]
 
+unsetProcTag[p_Proc, tags_List] := Fold[unsetProcTag, p, tags]
+
 
 setProcTag[p_Proc, tag : "transpose" | "algebraic transpose" | "adjoint" | "algebraic adjoint" | "dual"] /; procTagQ[p, tag] := unsetProcTag[p, tag]
 
@@ -131,7 +133,7 @@ doubleProc[p_Proc] := Module[{
 },
     If[procTagQ[p, "double"], Return[p]];
     cp = dualProc @ conjugateProc[p];
-    q = CircleTimes[cp, mapProcLabel["Doubled", p]];
+    q = CircleTimes[cp, p];
     If[ Length[procOutput[q, True]] > 0,
         Module[{perm = doublePermutation[Length[procOutput[p, True]]], pi},
             pi = permutationProc[perm, procOutput[q, True]];
@@ -151,7 +153,10 @@ doubleProc[p_Proc] := Module[{
         ];
 
     ];
-    unsetProcTag[setProcTag[setProcData[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procData[p], "Double" -> p]], "double"], "circuit"]
+    unsetProcTag[
+        setProcTag[setProcData[mapProcLabel[Style[OverHat[label], Bold] &, q], Append[procData[p], "Double" -> p]], "double"],
+        "circuit" | "composite"
+    ]
 ]
 
 

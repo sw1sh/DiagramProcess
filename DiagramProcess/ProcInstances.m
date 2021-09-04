@@ -227,6 +227,8 @@ Proc["ToggleBasis"[args___]] := replaceUnderHold[Proc[args],
         q_Proc /; procTagQ[q, "spider"] :> If[MissingQ[procData[q]["Basis"]], Proc["XBasis"[q]], Proc["ZBasis"[q]]]
     }]
 
+Proc["XSpiderBox"[args___]] := Proc["ToggleBasis"["SpiderBox"[args]]]
+
 Proc["Hadamard"[a_]] := Proc["SpiderBox"[Pi, a]]
 
 Proc["Measure"[a_]] := measureProc[a]
@@ -252,3 +254,14 @@ Proc["QCNOT"[a_]] := With[{t = SystemType[a]},
         ]
     ]
 ]
+
+Proc["/"[a_]] := Proc["Box" @ "Composite"[
+    CircleTimes["Spider"[- Pi / 4, 0, 1, a], "Spider"[1, 2, a], "Spider"[Pi / 4, 0, 1, a]] /*
+    CircleTimes["XSpider"[2, 1, a], "XSpider"[2, 1, a]] /*
+    CircleTimes["Spider"[- Pi / 4, 1, 1, a], "Spider"[Pi / 4, 1, 1, a]] /*
+    "XSpider"[2, 1, a], "/"]
+]
+
+Proc["\\"[a_]] := Proc["Box" @ "Composite"["Spider"[Pi, 1, 1, a] @* "/"[a] @* "Spider"[Pi, 1, 1, a], "\\"]]
+
+Proc["AND"[a_]] := Proc["Box" @ "Composite"[CircleTimes["/"[a], "/"[a]] /* "Spider"[2, 1, a] /* "\\"[a], "^"]]

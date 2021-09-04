@@ -19,17 +19,17 @@ DiagramProcess[p_Proc, OptionsPattern[]]["Process"] := Module[{q = p},
 
 
 (d : DiagramProcess[_, opts : OptionsPattern[]])["Diagram" | "Graph", gopts : OptionsPattern[ProcGraph]] := With[{
-    g = ProcGraph[d["Process"], "Interactive" -> False, gopts]
+    gs = wrap @ ProcGraph[d["Process"], "Interactive" -> False, gopts]
 },
-    If[ TrueQ[OptionValue[ProcGraph, {gopts}, "Interactive"]],
+    If[Length[#] > 1, Inactive[Plus] @@ #, First[#]] & @ Map[If[ TrueQ[OptionValue[ProcGraph, {gopts}, "Interactive"]],
         Module[{graph = #},
             InteractiveGraph[Dynamic[graph], Sequence @@ FilterRules[{gopts}, Options[Graph]]]
         ] &, Identity][
         Graph[
-            If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph[g, gopts], g],
+            If[TrueQ[OptionValue["Simplify"]], simplifyProcGraph[#, gopts], #],
             Sequence @@ FilterRules[{gopts}, Options[Graph]]
         ]
-    ]
+    ] &, gs]
 ]
 
 
@@ -107,10 +107,12 @@ DiagramProcess /: MakeBoxes[d : DiagramProcess[_, opts : OptionsPattern[]], form
     BoxForm`ArrangeSummaryBox[
         DiagramProcess,
         d,
-        Magnify[Plus @@ wrap @ d[
+        Graph[d[
             "Diagram",
-            Sequence @@ FilterRules[{opts}, Options[ProcGraph]], "ShowWireLabels" -> False, "AddTerminals" -> True, "ArrowPosition" -> 0.7
-        ], 0.5],
+            Sequence @@ FilterRules[{opts}, Options[ProcGraph]],
+           	"ShowWireLabels" -> False, "ShowWirePoints" -> False,
+            "AddTerminals" -> True, "ArrowPosition" -> 0.5
+        ], ImageSize -> Dynamic @ {Automatic, 10 CurrentValue["FontCapHeight"] / AbsoluteCurrentValue[Magnification]}],
         above,
         below,
         form,

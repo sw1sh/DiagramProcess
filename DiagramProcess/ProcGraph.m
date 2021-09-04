@@ -14,6 +14,7 @@ Options[ProcGraph] = {
     "ShowArrowLabels" -> False,
     "ShowProcessLabels" -> True,
     "ShowWireLabels" -> True,
+    "ShowWirePoints" -> True,
     "ShowProcessArrows" -> False,
     "ArrowPosition" -> Automatic,
     "Size" -> Automatic,
@@ -46,7 +47,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
     vertexLabel = If[TrueQ[OptionValue["ShowProcessLabels"]], stripProcLabel @ procLabel[p], ""];
     vertexCoords = {0, 0};
     vertexSize = MapAt[Min[Replace[#, Automatic -> 1], 1] & ,
-        MapAt[Replace[Automatic -> Max[procArity[p], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
+        MapAt[Replace[Automatic -> Max[If[procTagQ[p, "circuit"], procArity[p] - 1, procArity[p]], 1]], Replace[OptionValue["Size"], Automatic -> {Automatic, Automatic}], 1],
         2
     ];
     If[ procTagQ[p, "initial" | "terminal"],
@@ -239,7 +240,10 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         ];
         With[{
             fun = shapeFun,
-            faceForm = If[! MissingQ[procData[p]["Basis"]], FaceForm[Gray], FaceForm[Transparent]],
+            faceForm = If[procTagQ[q, "composite"] && TrueQ[OptionValue["ShowComposites"]],
+                Nothing,
+                If[! MissingQ[procData[p]["Basis"]], FaceForm[Gray], FaceForm[Transparent]]
+            ],
             inLabels = Table[If[typeArity[pIn[[i]]] > 0, Inactivate[
                 With[{pos = posScale[#1, {
                     If[ procTagQ[q, "circuit"],
@@ -284,7 +288,7 @@ ProcGraph[p : (Proc[Except[_Defer | Labeled[_Defer, _]], ___] | _Proc ? (procTag
         },
             With[{shapeFunBody = {
                     faceForm, Inactive[fun][##],
-                    If[! topologicalProcQ[p], {Black, PointSize[Medium], inLabels, outLabels} , Nothing]
+                    If[! topologicalProcQ[p], {Black, PointSize[If[TrueQ[OptionValue["ShowWirePoints"]], Medium, 0]], inLabels, outLabels} , Nothing]
                 }
             },
                 shapeFun = Function[shapeFunBody] // Activate
@@ -304,7 +308,7 @@ ProcGraph[Proc[f : _Composition | _CircleTimes | _Plus, args__], opts : OptionsP
     ProcGraph[Proc[Defer[f], args], opts]
 
 
-ProcGraph[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := Inactive[Plus] @@ (ProcGraph[#, opts] & /@ {ps})
+ProcGraph[Proc[Labeled[Defer[Plus[ps__Proc]], _] | Defer[Plus[ps__Proc]], ___], opts : OptionsPattern[]] := ProcGraph[#, opts] & /@ {ps}
 
 
 ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[ps__Proc]], in_, out_, ___], opts : OptionsPattern[]] := Module[{
@@ -329,7 +333,7 @@ ProcGraph[p : Proc[Labeled[Defer[CircleTimes[ps__Proc]], _] | Defer[CircleTimes[
             1
         ]
     },
-        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * If[#3 > 1, scaleWidth, 1], Max[graphHeights]}, opts] &,
+        graphs = MapThread[ProcGraph[#1, "AddTerminals" -> False, "Size" -> {#2 * If[#3 > 1, Max[scaleWidth, 1], 1], Max[graphHeights]}, opts] &,
             {{ps}, graphWidths, procArity /@ {ps}, graphs}
         ];
         {graphWidths, graphHeights} = Transpose[graphSize /@ graphs];
