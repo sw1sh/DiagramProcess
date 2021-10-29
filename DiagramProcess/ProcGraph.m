@@ -503,7 +503,9 @@ withProcGraphEdgeShapeFunction[g_Graph, opts : OptionsPattern[ProcGraph]] := Wit
             With[{
                 fromShiftIn = edgeSideShift[i + Boole[procTagQ[v, "circuit"]], vertexSize[v], vInArity],
                 toShiftOut = edgeSideShift[j - Boole[procTagQ[w, "circuit"]], vertexSize[w], wOutArity],
-                multiplicity = If[TrueQ[thickDoubleWire] && typeArity[vOut[[i]]] == 2, 1, typeArity[vOut[[i]]]],
+                multiplicity = If[TrueQ[thickDoubleWire] &&
+                    typeArity[If[e[[3, 0]] === DownArrow, vIn[[i]], vOut[[i]]]] == 2, 1, typeArity[If[e[[3, 0]] === DownArrow, vIn[[i]], vOut[[i]]]]
+                ],
                 multiplyWidthIn = productWidth,
                 multiplyWidthOut = productWidth,
                 vsize = vertexSize[v], wsize = vertexSize[w],
